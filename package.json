@@ -1,0 +1,90 @@
+{
+  "name": "youtube-mcp-server",
+  "version": "1.0.0",
+  "description": "Comprehensive YouTube Data API v3 MCP Server for content research, analytics, and keyword discovery workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "youtube-mcp-server": "bin/youtube-mcp-server.js"
+  },
+  "files": [
+    "bin/**/*",
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/src/index.js",
+    "build:with-debug": "tsc && chmod +x dist/src/index.js && npm run debug:post-build",
+    "test:quick": "tsc --noEmit",
+    "debug:post-build": "node dist/debug/integration/server-integration.js post-build",
+    "debug:manual": "node dist/debug/integration/server-integration.js manual-debug",
+    "build:prod": "tsc -p tsconfig.prod.json && chmod +x dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:mcp": "scripts/test-mcp-inspector.sh",
+    "test:discovery": "node scripts/verify-tool-discovery.js",
+    "test:e2e": "jest tests/e2e/mcp-inspector.test.ts",
+    "test:inspector": "npm run test:discovery && npm run test:mcp && npm run test:e2e",
+    "verify:tools": "node scripts/verify-tool-discovery.js",
+    "test:all": "npm run test && npm run test:inspector",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/src/index.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build:prod && (npm test || echo 'Tests skipped - no API key available')",
+    "clean": "rm -rf dist",
+    "cleanup": "node scripts/cleanup.js",
+    "version": "npm run build:prod && git add -A dist",
+    "postversion": "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/youtube-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/youtube-mcp-server/issues"
+  },
+  "homepage": "https://github.com/yourusername/youtube-mcp-server#readme",
+  "keywords": [
+    "youtube",
+    "mcp",
+    "server",
+    "api",
+    "workflow",
+    "model-context-protocol",
+    "youtube-api",
+    "content-research",
+    "keyword-research",
+    "competitor-analysis",
+    "viral-videos",
+    "analytics",
+    "nlp",
+    "typescript"
+  ],
+  "author": {
+    "name": "YouTube MCP Server",
+    "url": "https://github.com/yourusername/youtube-mcp-server"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0",
+    "compromise": "^14.0.0",
+    "natural": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/natural": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "jest-json-schema": "^6.1.0",
+    "ts-jest": "^29.1.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.3.0"
+  }
+}

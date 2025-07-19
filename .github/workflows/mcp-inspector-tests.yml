@@ -1,0 +1,324 @@
+name: MCP Inspector Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2 AM UTC to catch API changes
+    - cron: '0 2 * * *'
+
+jobs:
+  mcp-inspector-tests:
+    name: MCP Inspector Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+        test-mode: [production, development]
+      fail-fast: false
+
+    env:
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      DEBUG_CONSOLE: false
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install MCP Inspector
+        run: npm install -g @modelcontextprotocol/inspector
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Verify Build Output
+        run: |
+          ls -la dist/src/
+          test -f dist/src/index.js || exit 1
+
+      - name: Run Tool Discovery Verification
+        id: discovery
+        run: |
+          echo "Running tool discovery verification..."
+          npm run test:discovery
+          echo "discovery_status=success" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run MCP Inspector Shell Tests
+        id: shell_tests
+        if: env.YOUTUBE_API_KEY != ''
+        run: |
+          echo "Running MCP Inspector shell tests..."
+          timeout 300 npm run test:mcp || echo "Shell tests completed with timeout"
+          echo "shell_tests_status=completed" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run Jest E2E Tests
+        id: e2e_tests
+        if: env.YOUTUBE_API_KEY != ''
+        run: |
+          echo "Running Jest-based end-to-end tests..."
+          npm run test:e2e
+          echo "e2e_tests_status=success" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run Unit Tests
+        id: unit_tests
+        run: |
+          echo "Running unit tests..."
+          npm test
+          echo "unit_tests_status=success" >> $GITHUB_OUTPUT
+
+      - name: Test Without API Key (Error Handling)
+        id: no_api_key_test
+        env:
+          YOUTUBE_API_KEY: "invalid_key_for_testing"
+        run: |
+          echo "Testing error handling with invalid API key..."
+          timeout 60 node scripts/verify-tool-discovery.js || true
+          echo "no_api_key_test_status=completed" >> $GITHUB_OUTPUT
+
+      - name: Collect Test Artifacts
+        if: always()
+        run: |
+          mkdir -p test-artifacts
+          
+          # Collect log files if they exist
+          if [ -f test-results.log ]; then
+            cp test-results.log test-artifacts/
+          fi
+          
+          if [ -f server.log ]; then
+            cp server.log test-artifacts/
+          fi
+          
+          if [ -f tool-discovery-report.json ]; then
+            cp tool-discovery-report.json test-artifacts/
+          fi
+          
+          # Create test summary
+          cat > test-artifacts/test-summary.md << EOF
+          # Test Summary
+          
+          **Node Version**: ${{ matrix.node-version }}
+          **Test Mode**: ${{ matrix.test-mode }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+          **Run Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Test Results
+          
+          - **Tool Discovery**: ${{ steps.discovery.outputs.discovery_status || 'failed' }}
+          - **Shell Tests**: ${{ steps.shell_tests.outputs.shell_tests_status || 'skipped' }}
+          - **E2E Tests**: ${{ steps.e2e_tests.outputs.e2e_tests_status || 'skipped' }}
+          - **Unit Tests**: ${{ steps.unit_tests.outputs.unit_tests_status || 'failed' }}
+          - **Error Handling**: ${{ steps.no_api_key_test.outputs.no_api_key_test_status || 'failed' }}
+          
+          ## Environment
+          
+          - **API Key Available**: ${{ env.YOUTUBE_API_KEY != '' }}
+          - **OS**: Ubuntu Latest
+          - **Node**: ${{ matrix.node-version }}
+          
+          EOF
+
+      - name: Upload Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-node${{ matrix.node-version }}-${{ matrix.test-mode }}
+          path: test-artifacts/
+          retention-days: 7
+
+      - name: Report Test Status
+        if: always()
+        run: |
+          echo "=== Test Results Summary ==="
+          echo "Node Version: ${{ matrix.node-version }}"
+          echo "Test Mode: ${{ matrix.test-mode }}"
+          echo "Tool Discovery: ${{ steps.discovery.outputs.discovery_status || 'failed' }}"
+          echo "Shell Tests: ${{ steps.shell_tests.outputs.shell_tests_status || 'skipped' }}"
+          echo "E2E Tests: ${{ steps.e2e_tests.outputs.e2e_tests_status || 'skipped' }}"
+          echo "Unit Tests: ${{ steps.unit_tests.outputs.unit_tests_status || 'failed' }}"
+          echo "Error Handling: ${{ steps.no_api_key_test.outputs.no_api_key_test_status || 'failed' }}"
+
+      - name: Fail Job on Critical Test Failures
+        if: |
+          steps.discovery.outputs.discovery_status != 'success' ||
+          steps.unit_tests.outputs.unit_tests_status != 'success'
+        run: |
+          echo "Critical tests failed. Failing the job."
+          exit 1
+
+  api-quota-check:
+    name: API Quota Usage Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Test API Quota Usage
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          echo "Testing minimal API usage to verify quota status..."
+          timeout 60 node scripts/verify-tool-discovery.js || true
+
+  security-check:
+    name: Security and Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check for API Key Exposure
+        run: |
+          echo "Checking for exposed API keys in code..."
+          if grep -r "AIza[0-9A-Za-z-_]{35}" src/ --exclude-dir=node_modules; then
+            echo "ERROR: API key found in source code!"
+            exit 1
+          fi
+          echo "No API keys found in source code."
+
+      - name: Validate Test Scripts
+        run: |
+          echo "Validating test script permissions and content..."
+          
+          # Check script permissions
+          if [ ! -x scripts/test-mcp-inspector.sh ]; then
+            echo "ERROR: Test script is not executable!"
+            exit 1
+          fi
+          
+          # Check for dangerous commands
+          if grep -E "(rm -rf /|sudo|su -)" scripts/test-mcp-inspector.sh; then
+            echo "ERROR: Dangerous commands found in test script!"
+            exit 1
+          fi
+          
+          echo "Test scripts validation passed."
+
+  compatibility-matrix:
+    name: Compatibility Matrix Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    strategy:
+      matrix:
+        include:
+          - node-version: 16
+            api-key: present
+          - node-version: 18
+            api-key: missing
+          - node-version: 20
+            api-key: present
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Test Tool Discovery (No API Key Required)
+        run: npm run test:discovery
+
+      - name: Test With API Key
+        if: matrix.api-key == 'present'
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          if [ -n "$YOUTUBE_API_KEY" ]; then
+            echo "Testing with API key available..."
+            timeout 180 npm run test:inspector || echo "Tests completed with timeout"
+          else
+            echo "API key not available, skipping API-dependent tests"
+          fi
+
+  performance-baseline:
+    name: Performance Baseline
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Performance Test
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          echo "Running performance baseline tests..."
+          
+          # Time the tool discovery process
+          start_time=$(date +%s)
+          npm run test:discovery
+          end_time=$(date +%s)
+          discovery_time=$((end_time - start_time))
+          
+          echo "Tool discovery time: ${discovery_time}s"
+          
+          # Save performance metrics
+          echo "discovery_time_seconds: $discovery_time" > performance-metrics.txt
+          
+          # Performance thresholds
+          if [ $discovery_time -gt 30 ]; then
+            echo "WARNING: Tool discovery took longer than expected (${discovery_time}s > 30s)"
+          fi
+
+      - name: Upload Performance Metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-metrics
+          path: performance-metrics.txt

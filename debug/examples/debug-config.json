@@ -1,0 +1,279 @@
+{
+  "defaultConfiguration": {
+    "enableContinuousMonitoring": true,
+    "monitoringInterval": 30,
+    "errorCorrelationWindow": 5,
+    "logSources": [
+      "./debug.log",
+      "~/.cline/tasks",
+      "/var/log/mcp-server.log"
+    ],
+    "enableAutomatedDebugging": true,
+    "debugAfterBuild": true,
+    "debugAfterToolCall": false,
+    "debugAfterError": true,
+    "maxCorrelatedErrors": 10,
+    "maxRecommendations": 5
+  },
+  
+  "environments": {
+    "development": {
+      "enableContinuousMonitoring": true,
+      "monitoringInterval": 15,
+      "errorCorrelationWindow": 3,
+      "logSources": [
+        "./debug.log",
+        "~/.cline/tasks",
+        "./test-logs"
+      ],
+      "enableAutomatedDebugging": true,
+      "debugAfterBuild": true,
+      "debugAfterToolCall": true,
+      "debugAfterError": true,
+      "maxCorrelatedErrors": 20,
+      "maxRecommendations": 10,
+      "verboseLogging": true
+    },
+    
+    "testing": {
+      "enableContinuousMonitoring": false,
+      "monitoringInterval": 60,
+      "errorCorrelationWindow": 2,
+      "logSources": [
+        "./test-logs/debug-test.log",
+        "./test-logs/cline-tasks"
+      ],
+      "enableAutomatedDebugging": true,
+      "debugAfterBuild": false,
+      "debugAfterToolCall": false,
+      "debugAfterError": true,
+      "maxCorrelatedErrors": 5,
+      "maxRecommendations": 3,
+      "testMode": true
+    },
+    
+    "production": {
+      "enableContinuousMonitoring": true,
+      "monitoringInterval": 300,
+      "errorCorrelationWindow": 10,
+      "logSources": [
+        "/var/log/youtube-mcp-server/debug.log",
+        "/var/log/youtube-mcp-server/error.log",
+        "~/.cline/tasks"
+      ],
+      "enableAutomatedDebugging": false,
+      "debugAfterBuild": false,
+      "debugAfterToolCall": false,
+      "debugAfterError": false,
+      "maxCorrelatedErrors": 50,
+      "maxRecommendations": 3,
+      "productionMode": true,
+      "alertOnCriticalErrors": true
+    }
+  },
+  
+  "logSourceConfiguration": {
+    "description": "Configure custom log file locations and sources",
+    "examples": {
+      "standardMcpServer": {
+        "logSources": [
+          "./debug.log",
+          "~/.cline/tasks",
+          "/var/log/mcp-server.log"
+        ]
+      },
+      
+      "dockerizedSetup": {
+        "logSources": [
+          "/app/logs/debug.log",
+          "/shared/cline-tasks",
+          "/var/log/containers/mcp-server.log"
+        ]
+      },
+      
+      "windowsSetup": {
+        "logSources": [
+          ".\\debug.log",
+          "%USERPROFILE%\\.cline\\tasks",
+          "C:\\logs\\mcp-server.log"
+        ]
+      },
+      
+      "cicdEnvironment": {
+        "logSources": [
+          "./build-logs/debug.log",
+          "./test-results",
+          "/tmp/ci-logs"
+        ]
+      }
+    }
+  },
+  
+  "monitoringSettings": {
+    "description": "Customize monitoring behavior and intervals",
+    "intervalOptions": {
+      "realtime": 5,
+      "frequent": 15,
+      "normal": 30,
+      "relaxed": 60,
+      "minimal": 300
+    },
+    
+    "correlationWindows": {
+      "tight": 1,
+      "close": 3,
+      "normal": 5,
+      "wide": 10,
+      "broad": 30
+    },
+    
+    "thresholds": {
+      "errorCountThreshold": 5,
+      "quotaUsageThreshold": 8000,
+      "executionTimeThreshold": 30000,
+      "memoryUsageThreshold": "500MB"
+    }
+  },
+  
+  "integrationOptions": {
+    "description": "Control which debug hooks are enabled",
+    "hookConfiguration": {
+      "afterBuild": {
+        "enabled": true,
+        "runHealthChecks": true,
+        "analyzeLogHistory": true,
+        "generateReport": true
+      },
+      
+      "afterToolCall": {
+        "enabled": false,
+        "onSuccessfulCalls": false,
+        "onFailedCalls": true,
+        "trackPerformance": true
+      },
+      
+      "afterError": {
+        "enabled": true,
+        "immediateAnalysis": true,
+        "correlateWithHistory": true,
+        "generateRecommendations": true
+      },
+      
+      "onServerStartup": {
+        "enabled": true,
+        "validateConfiguration": true,
+        "checkLogSources": true,
+        "runSystemChecks": true
+      }
+    }
+  },
+  
+  "performanceSettings": {
+    "description": "Configure performance and resource limits",
+    "quotaManagement": {
+      "trackQuotaUsage": true,
+      "quotaWarningThreshold": 8000,
+      "quotaCriticalThreshold": 9500,
+      "enableQuotaOptimization": true
+    },
+    
+    "executionLimits": {
+      "maxDebugExecutionTime": 30000,
+      "maxLogFileSizeToAnalyze": "10MB",
+      "maxCorrelatedErrorsToProcess": 100,
+      "debugTimeoutMs": 60000
+    },
+    
+    "resourceLimits": {
+      "maxMemoryUsage": "200MB",
+      "maxConcurrentDebugSessions": 3,
+      "maxLogRetentionDays": 7
+    }
+  },
+  
+  "outputConfiguration": {
+    "description": "Control debug output format and destinations",
+    "consoleOutput": {
+      "enabled": true,
+      "colorized": true,
+      "verbosity": "normal",
+      "includeTimestamps": true,
+      "includeExecutionIds": false
+    },
+    
+    "fileOutput": {
+      "enabled": true,
+      "logDirectory": "./",
+      "logFileName": "debug.log",
+      "rotateDaily": true,
+      "maxFileSizeMB": 50,
+      "compressionEnabled": true
+    },
+    
+    "reportGeneration": {
+      "generateJsonReports": true,
+      "generateMarkdownSummary": false,
+      "includeSystemInfo": true,
+      "includeRecommendations": true,
+      "reportDirectory": "./"
+    }
+  },
+  
+  "errorHandlingConfiguration": {
+    "description": "Configure how debug errors are handled",
+    "gracefulDegradation": {
+      "continueOnDebugFailure": true,
+      "fallbackToBasicLogging": true,
+      "retryFailedOperations": true,
+      "maxRetryAttempts": 3
+    },
+    
+    "errorReporting": {
+      "reportDebugErrors": false,
+      "includeStackTraces": true,
+      "logDebugErrorsToConsole": true,
+      "alertOnCriticalDebugFailure": false
+    }
+  },
+  
+  "customizationExamples": {
+    "minimalSetup": {
+      "enableContinuousMonitoring": false,
+      "debugAfterBuild": true,
+      "debugAfterError": true,
+      "logSources": ["./debug.log"]
+    },
+    
+    "maximumMonitoring": {
+      "enableContinuousMonitoring": true,
+      "monitoringInterval": 5,
+      "debugAfterBuild": true,
+      "debugAfterToolCall": true,
+      "debugAfterError": true,
+      "verboseLogging": true,
+      "logSources": [
+        "./debug.log",
+        "~/.cline/tasks",
+        "/var/log/mcp-server.log",
+        "/var/log/system.log"
+      ]
+    },
+    
+    "errorOnlyMonitoring": {
+      "enableContinuousMonitoring": true,
+      "debugAfterBuild": false,
+      "debugAfterToolCall": false,
+      "debugAfterError": true,
+      "logSources": ["./debug.log", "~/.cline/tasks"]
+    },
+    
+    "performanceOptimized": {
+      "enableContinuousMonitoring": true,
+      "monitoringInterval": 60,
+      "errorCorrelationWindow": 3,
+      "maxCorrelatedErrors": 5,
+      "maxRecommendations": 3,
+      "debugTimeoutMs": 10000
+    }
+  }
+}

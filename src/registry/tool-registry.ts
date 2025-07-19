@@ -1,0 +1,132 @@
+import { readdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { ToolMetadata, ToolModule, ToolConstructor, ToolRunner } from '../interfaces/tool.js';
+import { ToolResponse } from '../types.js';
+
+export class ToolRegistry {
+  private tools: Map<string, { metadata: ToolMetadata; constructor: ToolConstructor }> = new Map();
+  private loaded = false;
+
+  constructor() {
+    // Tools will be loaded explicitly via loadAllTools()
+  }
+
+  async loadAllTools(): Promise<void> {
+    if (this.loaded) return;
+
+    try {
+      const currentDir = dirname(fileURLToPath(import.meta.url));
+      const toolsDir = join(currentDir, '..', 'tools');
+      
+      const files = readdirSync(toolsDir).filter(file => file.endsWith('.tool.ts') || file.endsWith('.tool.js'));
+      
+      for (const file of files) {
+        try {
+          const toolPath = join(toolsDir, file);
+          const module = await import(toolPath) as ToolModule;
+          
+          if (!module.metadata || !module.default) {
+            console.warn(`Tool file ${file} is missing required exports (metadata and default class)`);
+            continue;
+          }
+
+          this.validateToolModule(module);
+          this.tools.set(module.metadata.name, {
+            metadata: module.metadata,
+            constructor: module.default
+          });
+        } catch (error) {
+          console.error(`Failed to load tool from ${file}:`, error);
+        }
+      }
+
+      this.loaded = true;
+    } catch (error) {
+      console.error('Failed to load tools:', error);
+      this.loaded = true; // Prevent infinite retry
+    }
+  }
+
+  private validateToolModule(module: ToolModule): void {
+    const { metadata } = module;
+    
+    if (!metadata.name || typeof metadata.name !== 'string') {
+      throw new Error('Tool metadata must have a valid name');
+    }
+    
+    if (!metadata.description || typeof metadata.description !== 'string') {
+      throw new Error('Tool metadata must have a valid description');
+    }
+    
+    if (!metadata.inputSchema || typeof metadata.inputSchema !== 'object') {
+      throw new Error('Tool metadata must have a valid inputSchema');
+    }
+    
+    if (!module.default || typeof module.default !== 'function') {
+      throw new Error('Tool module must export a default class constructor');
+    }
+  }
+
+  listTools(): ToolMetadata[] {
+    return Array.from(this.tools.values()).map(tool => tool.metadata);
+  }
+
+  getTool(name: string): ToolMetadata | undefined {
+    return this.tools.get(name)?.metadata;
+  }
+
+  async executeTool<T = any>(name: string, input: any, client: any): Promise<ToolResponse<T>> {
+    const tool = this.tools.get(name);
+    
+    if (!tool) {
+      return {
+        success: false,
+        error: `Tool '${name}' not found`,
+        metadata: {
+          quotaUsed: 0,
+          requestTime: 0,
+          source: 'tool-registry'
+        }
+      };
+    }
+
+    try {
+      const startTime = Date.now();
+      const toolInstance: ToolRunner<any, T> = new tool.constructor(client);
+      const result = await toolInstance.run(input);
+      const requestTime = Date.now() - startTime;
+
+      // Ensure metadata is present
+      if (result.metadata) {
+        result.metadata.requestTime = requestTime;
+      } else {
+        result.metadata = {
+          quotaUsed: tool.metadata.quotaCost || 1,
+          requestTime,
+          source: name
+        };
+      }
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        metadata: {
+          quotaUsed: 0,
+          requestTime: Date.now(),
+          source: name
+        }
+      };
+    }
+  }
+
+  hasTools(): boolean {
+    return this.tools.size > 0;
+  }
+
+  getToolCount(): number {
+    return this.tools.size;
+  }
+}

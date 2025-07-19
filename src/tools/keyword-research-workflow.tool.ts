@@ -1,5 +1,6 @@
-import { ToolMetadata, ToolRunner } from '../interfaces/tool.js';
+import { ToolMetadata, ToolRunner, ChainableToolRunner } from '../interfaces/tool.js';
 import { YouTubeClient } from '../youtube-client.js';
+import { ToolRegistry } from '../registry/tool-registry.js';
 import { ToolResponse, KeywordAnalysisResult } from '../types.js';
 
 interface KeywordResearchWorkflowOptions {
@@ -26,7 +27,7 @@ interface WorkflowResult {
 
 export const metadata: ToolMetadata = {
   name: 'keyword_research_workflow',
-  description: 'Complete keyword research workflow: search videos, extract keywords, analyze opportunities, and generate insights.',
+  description: 'COMPLETE keyword research workflow in ONE COMMAND. Automatically: 1) Searches top videos for your keywords, 2) Extracts ALL keywords from those videos, 3) Analyzes competition and opportunity scores, 4) Finds content gaps, 5) Generates keyword cloud visualization. Use this POWER TOOL when starting keyword research from scratch. Returns EVERYTHING you need: winning keywords, content ideas, competitor insights, and actionable recommendations. Saves hours of manual analysis.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -61,11 +62,12 @@ export const metadata: ToolMetadata = {
     },
     required: ['seedKeywords']
   },
-  quotaCost: 200
+  quotaCost: 200,
+  requiresRegistry: true // This tool needs registry for chaining
 };
 
-export default class KeywordResearchWorkflowTool implements ToolRunner<KeywordResearchWorkflowOptions, WorkflowResult> {
-  constructor(private client: YouTubeClient) {}
+export default class KeywordResearchWorkflowTool implements ChainableToolRunner<KeywordResearchWorkflowOptions, WorkflowResult> {
+  constructor(private client: YouTubeClient, private registry: ToolRegistry) {}
 
   async run(options: KeywordResearchWorkflowOptions): Promise<ToolResponse<WorkflowResult>> {
     const startTime = Date.now();
@@ -159,28 +161,45 @@ export default class KeywordResearchWorkflowTool implements ToolRunner<KeywordRe
       keywords: [] as any[],
       totalSearchVolume: 0,
       averageCompetition: 0,
-      opportunities: [] as string[]
+      opportunities: [] as string[],
+      channelIds: new Set<string>()
     };
 
     for (const keyword of seedKeywords) {
-      // Search for videos with this keyword
-      const searchResponse = await this.client.search({
-        part: 'snippet',
-        q: keyword,
-        type: 'video',
+      // Use search_videos tool via registry
+      const searchResult = await this.registry.executeTool('search_videos', {
+        query: keyword,
         maxResults: 25,
         order: 'relevance'
+      }, this.client);
+
+      if (!searchResult.success || !searchResult.data) {
+        console.warn(`Failed to search for keyword: ${keyword}`);
+        continue;
+      }
+
+      const searchData = searchResult.data as any;
+      const items = searchData.items || [];
+      const totalResults = searchData.pageInfo?.totalResults || 0;
+
+      // Collect channel IDs for later analysis
+      items.forEach((item: any) => {
+        if (item.snippet?.channelId) {
+          analysis.channelIds.add(item.snippet.channelId);
+        }
       });
 
       const keywordData = {
         keyword,
-        searchVolume: searchResponse.pageInfo.totalResults,
-        resultCount: searchResponse.items.length,
-        competition: this.calculateCompetition(searchResponse.items.length, searchResponse.pageInfo.totalResults),
-        topVideos: searchResponse.items.slice(0, 5).map(item => ({
-          title: item.snippet.title,
-          channelTitle: item.snippet.channelTitle,
-          publishedAt: item.snippet.publishedAt
+        searchVolume: totalResults,
+        resultCount: items.length,
+        competition: this.calculateCompetition(items.length, totalResults),
+        topVideos: items.slice(0, 5).map((item: any) => ({
+          title: item.snippet?.title,
+          channelTitle: item.snippet?.channelTitle,
+          channelId: item.snippet?.channelId,
+          publishedAt: item.snippet?.publishedAt,
+          videoId: item.id?.videoId
         }))
       };
 
@@ -193,7 +212,9 @@ export default class KeywordResearchWorkflowTool implements ToolRunner<KeywordRe
       }
     }
 
-    analysis.averageCompetition = analysis.keywords.reduce((sum, k) => sum + k.competition, 0) / analysis.keywords.length;
+    analysis.averageCompetition = analysis.keywords.length > 0 
+      ? analysis.keywords.reduce((sum, k) => sum + k.competition, 0) / analysis.keywords.length
+      : 0;
 
     return analysis;
   }
@@ -203,27 +224,52 @@ export default class KeywordResearchWorkflowTool implements ToolRunner<KeywordRe
       totalVideosAnalyzed: 0,
       extractedKeywords: [] as any[],
       commonThemes: [] as string[],
-      performanceInsights: [] as any[]
+      performanceInsights: [] as any[],
+      videoIds: [] as string[]
     };
 
     for (const keyword of seedKeywords) {
-      // Get top videos for this keyword
-      const searchResponse = await this.client.search({
-        part: 'snippet',
-        q: keyword,
-        type: 'video',
+      // Use search_videos tool via registry
+      const searchResult = await this.registry.executeTool('search_videos', {
+        query: keyword,
         maxResults: Math.min(maxVideos / seedKeywords.length, 25),
         order: 'viewCount'
-      });
+      }, this.client);
 
-      videoAnalysis.totalVideosAnalyzed += searchResponse.items.length;
+      if (!searchResult.success || !searchResult.data) {
+        console.warn(`Failed to search videos for keyword: ${keyword}`);
+        continue;
+      }
 
-      // Extract keywords from video titles and descriptions
-      const extractedKeywords = this.extractKeywordsFromVideos(searchResponse.items);
-      videoAnalysis.extractedKeywords.push(...extractedKeywords);
+      const searchData = searchResult.data as any;
+      const items = searchData.items || [];
 
-      // Analyze themes
-      const themes = this.extractThemes(searchResponse.items);
+      videoAnalysis.totalVideosAnalyzed += items.length;
+
+      // Collect video IDs for keyword extraction
+      const videoIds = items
+        .filter((item: any) => item.id?.videoId)
+        .map((item: any) => item.id.videoId);
+      
+      videoAnalysis.videoIds.push(...videoIds);
+
+      // Extract keywords from video titles and descriptions using extract_keywords_from_videos tool
+      if (videoIds.length > 0) {
+        const keywordExtractionResult = await this.registry.executeTool('extract_keywords_from_videos', {
+          videoIds: videoIds.slice(0, 10), // Limit to 10 videos per keyword to manage quota
+          maxKeywords: 50
+        }, this.client);
+
+        if (keywordExtractionResult.success && keywordExtractionResult.data) {
+          const extractedData = keywordExtractionResult.data as any;
+          if (extractedData.keywords) {
+            videoAnalysis.extractedKeywords.push(...extractedData.keywords);
+          }
+        }
+      }
+
+      // Analyze themes from titles
+      const themes = this.extractThemes(items);
       videoAnalysis.commonThemes.push(...themes);
     }
 

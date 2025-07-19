@@ -28,7 +28,7 @@ interface KeywordAnalysisResult {
 
 export const metadata: ToolMetadata = {
   name: 'analyze_keywords',
-  description: 'Perform comprehensive analysis of keywords including scoring, competition analysis, and trend data.',
+  description: 'Perform DEEP analysis on keywords to find winning opportunities. Evaluates search volume, competition difficulty, and generates related keywords. Use AFTER search_videos to analyze keywords from actual content. Returns: keyword scores (0-100), difficulty ratings, clusters of related terms, and specific recommendations. CRITICAL for: choosing video topics, optimizing titles/tags, finding low-competition keywords. Analyzes up to 100 keywords and identifies hidden opportunities.',
   inputSchema: {
     type: 'object',
     properties: {

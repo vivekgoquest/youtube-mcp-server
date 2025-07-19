@@ -21,7 +21,7 @@ interface CommentAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'extract_video_comments',
-  description: 'Extract comments from videos with analysis options including sentiment analysis.',
+  description: 'Extract and analyze comments from YouTube videos to understand viewer feedback, sentiment, and engagement patterns. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, and optional sentiment analysis. Perfect for understanding audience needs, improving content based on feedback, and finding content ideas from viewer questions.',
   inputSchema: {
     type: 'object',
     properties: {

@@ -31,7 +31,7 @@ interface CompetitorAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'analyze_competitor',
-  description: 'Perform deep competitor analysis including upload patterns, content themes, and performance metrics.',
+  description: 'DEEP DIVE into any competitor channel to uncover their winning strategies. Analyzes upload patterns, best performing videos, content themes, and engagement metrics. Use this to COPY what works and avoid what doesn\'t. Returns: upload schedule patterns, top 10 performing videos, content categories they dominate, average views/engagement, and specific gaps you can exploit. Input channel ID from search_channels. Essential for competitive intelligence.',
   inputSchema: {
     type: 'object',
     properties: {

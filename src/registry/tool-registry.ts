@@ -1,11 +1,11 @@
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { ToolMetadata, ToolModule, ToolConstructor, ToolRunner } from '../interfaces/tool.js';
+import { ToolMetadata, ToolModule, ToolConstructor, ChainableToolConstructor, ToolRunner } from '../interfaces/tool.js';
 import { ToolResponse } from '../types.js';
 
 export class ToolRegistry {
-  private tools: Map<string, { metadata: ToolMetadata; constructor: ToolConstructor }> = new Map();
+  private tools: Map<string, { metadata: ToolMetadata; constructor: ToolConstructor | ChainableToolConstructor }> = new Map();
   private loaded = false;
 
   constructor() {
@@ -93,7 +93,19 @@ export class ToolRegistry {
 
     try {
       const startTime = Date.now();
-      const toolInstance: ToolRunner<any, T> = new tool.constructor(client);
+      
+      // Check if tool requires registry for chaining
+      let toolInstance: ToolRunner<any, T>;
+      if (tool.metadata.requiresRegistry) {
+        // Pass registry for chainable tools - cast to ChainableToolConstructor
+        const ChainableConstructor = tool.constructor as ChainableToolConstructor;
+        toolInstance = new ChainableConstructor(client, this);
+      } else {
+        // Regular tools only get the client - cast to ToolConstructor
+        const RegularConstructor = tool.constructor as ToolConstructor;
+        toolInstance = new RegularConstructor(client);
+      }
+      
       const result = await toolInstance.run(input);
       const requestTime = Date.now() - startTime;
 

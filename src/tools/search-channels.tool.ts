@@ -4,7 +4,7 @@ import { ToolResponse, SearchChannelsParams, YouTubeApiResponse, SearchResult } 
 
 export const metadata: ToolMetadata = {
   name: 'search_channels',
-  description: 'Search for YouTube channels by query.',
+  description: 'Find YouTube channels by name/keyword to identify competitors or collaboration partners. Returns channel IDs needed for analyze_competitor and get_channel_details. Use this FIRST when researching competitors - search by niche keywords to discover who dominates your space. Returns up to 50 channels with subscriber counts visible in search results. TIP: Sort by viewCount to find channels with highest total views (often better than subscriber count).',
   inputSchema: {
     type: 'object',
     properties: {

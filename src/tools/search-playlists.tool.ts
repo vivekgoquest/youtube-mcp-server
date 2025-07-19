@@ -4,7 +4,7 @@ import { ToolResponse, SearchPlaylistsParams, YouTubeApiResponse, SearchResult }
 
 export const metadata: ToolMetadata = {
   name: 'search_playlists',
-  description: 'Search for YouTube playlists by query.',
+  description: 'Search for curated playlists to discover content organization patterns and find comprehensive topic coverage. Returns playlist IDs for deeper analysis. Use this to: find how experts organize content series, discover all videos on niche topics, understand content progression strategies. Can filter by specific channel to see their content structure. Returns up to 50 playlists with video counts. TIP: Popular playlists often indicate in-demand content series you should create.',
   inputSchema: {
     type: 'object',
     properties: {

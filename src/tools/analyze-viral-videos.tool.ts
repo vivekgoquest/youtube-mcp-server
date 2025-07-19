@@ -30,7 +30,7 @@ interface ViralVideoAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'analyze_viral_videos',
-  description: 'Analyze viral videos to identify patterns and characteristics that make content go viral.',
+  description: 'DECODE the viral formula by analyzing videos with 1M+ views in your niche. Examines titles, thumbnails patterns, video length, upload timing, and engagement ratios that correlate with viral success. Use this to REVERSE ENGINEER viral hits and apply winning formulas to your content. Returns: common title patterns, optimal video lengths, best upload times, engagement benchmarks. Filter by category and region for laser-focused insights.',
   inputSchema: {
     type: 'object',
     properties: {

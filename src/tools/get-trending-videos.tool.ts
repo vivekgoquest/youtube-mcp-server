@@ -4,7 +4,7 @@ import { ToolResponse, TrendingVideosParams, YouTubeApiResponse, Video } from '.
 
 export const metadata: ToolMetadata = {
   name: 'get_trending_videos',
-  description: 'Get trending/popular videos from YouTube.',
+  description: 'Get the HOTTEST trending videos on YouTube right now. See what\'s going viral in real-time, filtered by category and region. Use this to: spot emerging trends before they peak, understand what content formats are working NOW, analyze viral video characteristics. Returns up to 50 trending videos with full statistics. TIP: Filter by your niche category to see trending topics you should jump on immediately. Essential for trend-jacking and timely content.',
   inputSchema: {
     type: 'object',
     properties: {

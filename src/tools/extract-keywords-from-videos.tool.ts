@@ -12,7 +12,7 @@ interface ExtractKeywordsFromVideosOptions {
 
 export const metadata: ToolMetadata = {
   name: 'extract_keywords_from_videos',
-  description: 'Extract keywords from YouTube video titles, descriptions, and tags for keyword research.',
+  description: 'Extract ALL keywords from video titles, descriptions, tags, and optionally comments. Use this to REVERSE ENGINEER successful videos and steal their keyword strategies. Input video IDs from search_videos. Returns: exact tags used, keywords with frequency counts, phrases that appear multiple times. POWERFUL for: copying competitor keywords, finding niche-specific terms, understanding what keywords drive views. Can analyze up to 50 videos at once.',
   inputSchema: {
     type: 'object',
     properties: {

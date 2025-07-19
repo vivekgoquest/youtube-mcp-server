@@ -33,7 +33,7 @@ interface VideoAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'analyze_channel_videos',
-  description: 'Analyze all videos from a channel with detailed metrics including views, engagement, duration, and performance over time.',
+  description: 'DEEP ANALYSIS of all videos from any channel - yours or competitors. Analyzes up to 1000 videos to uncover: best performing content types, optimal video lengths, upload time patterns, engagement rates by video type, and performance trends. Use AFTER get_channel_details to get comprehensive insights. Returns: top 10 videos ranked by views/engagement, average metrics, content categorization, and specific recommendations. ESSENTIAL for understanding what content actually works.',
   inputSchema: {
     type: 'object',
     properties: {

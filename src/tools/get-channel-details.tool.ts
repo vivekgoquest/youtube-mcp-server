@@ -9,7 +9,7 @@ interface GetChannelDetailsOptions {
 
 export const metadata: ToolMetadata = {
   name: 'get_channel_details',
-  description: 'Get detailed information about a YouTube channel including statistics and content details.',
+  description: 'Get COMPLETE channel statistics including subscriber count, total views, video count, and upload playlist ID. Use this to SIZE UP any channel - competitor or your own. Returns data needed for deeper analysis: subscriber count (to gauge authority), total views (lifetime performance), video count (content volume), and uploads playlist ID (for analyze_channel_videos). Get channel ID from search_channels first. ESSENTIAL before competitor analysis.',
   inputSchema: {
     type: 'object',
     properties: {

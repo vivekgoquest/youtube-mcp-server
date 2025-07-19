@@ -9,7 +9,7 @@ interface GetVideoDetailsOptions {
 
 export const metadata: ToolMetadata = {
   name: 'get_video_details',
-  description: 'Get detailed information about a specific YouTube video including statistics, content details, and snippet information.',
+  description: 'Get COMPLETE details about any YouTube video including exact view count, likes, comments, tags, duration, and upload date. Use this to analyze WHY a video succeeded - examine titles, descriptions, tags of viral videos. Returns data you need for reverse engineering success. Get video ID from search_videos first. ESSENTIAL for: studying individual viral videos, extracting exact tags competitors use, understanding engagement ratios. Returns all metadata YouTube provides.',
   inputSchema: {
     type: 'object',
     properties: {

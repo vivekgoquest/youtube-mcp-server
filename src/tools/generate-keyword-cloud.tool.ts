@@ -11,7 +11,7 @@ interface GenerateKeywordCloudOptions {
 
 export const metadata: ToolMetadata = {
   name: 'generate_keyword_cloud',
-  description: 'Generate a keyword cloud visualization with frequency and relevance data.',
+  description: 'Generate a keyword cloud visualization showing the most important terms in your niche with size based on frequency and relevance. Use this to visualize keyword patterns, identify dominant themes, and create a quick overview of topic importance. Returns grouped keywords with scores and relationships. Perfect for presentations, content planning visuals, and understanding the overall keyword landscape at a glance.',
   inputSchema: {
     type: 'object',
     properties: {

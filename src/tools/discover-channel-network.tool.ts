@@ -25,7 +25,7 @@ interface ChannelNetworkNode {
 
 export const metadata: ToolMetadata = {
   name: 'discover_channel_network',
-  description: 'Discover channel network by recursively finding featured channels. Maps relationships between channels.',
+  description: 'MAP the hidden network of connected channels in any niche. Recursively discovers featured/recommended channels up to 5 levels deep, revealing collaboration networks and niche communities. Use this to: find ALL players in your niche, identify collaboration opportunities, understand channel alliances. Start with 1-3 seed channels and watch it spider out. Returns visual network showing who features whom. POWERFUL for discovering channels you\'d never find through search alone.',
   inputSchema: {
     type: 'object',
     properties: {

@@ -16,7 +16,7 @@ interface AdvancedSearchParams {
 
 export const metadata: ToolMetadata = {
   name: 'advanced_search',
-  description: 'Perform advanced search with complex filters and criteria.',
+  description: 'POWER SEARCH with advanced filters to find exactly what you need. Filter by: video duration (short/medium/long), upload date (last hour/day/week/month/year), sort order (relevance/date/views/rating). Use this when basic search isn\'t enough. PERFECT for: finding fresh content (uploadDate: "today"), high-performing videos (sortBy: "view_count"), or specific video lengths. Combine filters to laser-target your research. Returns video/channel/playlist results based on type parameter.',
   inputSchema: {
     type: 'object',
     properties: {

@@ -13,7 +13,7 @@ interface ExtractKeywordsFromTextOptions {
 
 export const metadata: ToolMetadata = {
   name: 'extract_keywords_from_text',
-  description: 'Extract keywords from any text content using advanced NLP techniques.',
+  description: 'Extract keywords from ANY text using advanced NLP - perfect for scripts, competitor descriptions, or content ideas. Finds single words AND multi-word phrases (up to 5 words). Use this to: analyze competitor video descriptions, process blog posts for video ideas, extract keywords from transcripts. Returns keywords ranked by importance with frequency counts. Handles text up to 50,000 words. SMART: filters out stop words, finds semantic phrases, identifies trending terms.',
   inputSchema: {
     type: 'object',
     properties: {

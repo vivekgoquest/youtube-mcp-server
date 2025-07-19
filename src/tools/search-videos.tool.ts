@@ -4,7 +4,7 @@ import { ToolResponse, SearchVideosParams, YouTubeApiResponse, SearchResult } fr
 
 export const metadata: ToolMetadata = {
   name: 'search_videos',
-  description: 'Search for YouTube videos with various filters including query, duration, upload date, and more.',
+  description: 'Search for YouTube videos by keyword or within a specific channel. START HERE when researching any topic on YouTube. Returns video titles, descriptions, channel info, and IDs that other tools need. Use this BEFORE analyze_keywords to find actual content. Supports filtering by date, duration, and region. Essential first step for: competitor research, content ideas, trend analysis, or finding videos to analyze further. TIP: Use returned video IDs with get_video_details for full statistics.',
   inputSchema: {
     type: 'object',
     properties: {

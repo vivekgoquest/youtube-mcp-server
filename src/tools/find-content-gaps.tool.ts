@@ -21,7 +21,7 @@ interface ContentGapAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'find_content_gaps',
-  description: 'Find content gaps and opportunities by analyzing keyword competition and search volume.',
+  description: 'DISCOVER untapped content opportunities your competitors are MISSING. Analyzes keywords and competitor channels to find topics with high demand but low supply. Returns SPECIFIC video ideas you should create, keywords no one is targeting, and niches within your niche. Use AFTER analyzing competitors and keywords. GAME-CHANGER for: finding blue ocean topics, avoiding saturated content, positioning yourself uniquely. Returns actionable content calendar ideas.',
   inputSchema: {
     type: 'object',
     properties: {

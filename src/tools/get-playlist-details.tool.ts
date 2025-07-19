@@ -9,7 +9,7 @@ interface GetPlaylistDetailsOptions {
 
 export const metadata: ToolMetadata = {
   name: 'get_playlist_details',
-  description: 'Get detailed information about a YouTube playlist.',
+  description: 'Get FULL details about any YouTube playlist including video count, title, description, and owner channel. Use this to understand how successful creators structure content series. Returns metadata needed to analyze playlist strategy. Get playlist ID from search_playlists first. USEFUL for: understanding content progression, analyzing series structure, finding all videos in a topic. Note: To get actual video list, use YouTube Data API directly with the playlist ID.',
   inputSchema: {
     type: 'object',
     properties: {

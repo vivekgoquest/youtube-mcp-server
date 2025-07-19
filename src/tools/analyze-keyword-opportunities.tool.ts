@@ -25,7 +25,7 @@ interface KeywordAnalysis {
 
 export const metadata: ToolMetadata = {
   name: 'analyze_keyword_opportunities',
-  description: 'Analyze keyword opportunities including competition, difficulty, and potential for ranking.',
+  description: 'OPPORTUNITY SCANNER that finds untapped keywords with high potential. Analyzes competition difficulty, search volume, and ranking potential for each keyword. Returns opportunity score (1-100) showing which keywords are easiest to rank for. Use this to find "golden keywords" - high search, low competition. INCLUDES: related keyword suggestions, competition analysis per keyword, and specific content recommendations. Essential for finding keywords where you can actually rank on page 1.',
   inputSchema: {
     type: 'object',
     properties: {

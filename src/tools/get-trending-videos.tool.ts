@@ -4,7 +4,7 @@ import { ToolResponse, TrendingVideosParams, YouTubeApiResponse, Video } from '.
 
 export const metadata: ToolMetadata = {
   name: 'get_trending_videos',
-  description: 'Get the HOTTEST trending videos on YouTube right now. See what\'s going viral in real-time, filtered by category and region. Use this to: spot emerging trends before they peak, understand what content formats are working NOW, analyze viral video characteristics. Returns up to 50 trending videos with full statistics. TIP: Filter by your niche category to see trending topics you should jump on immediately. Essential for trend-jacking and timely content.',
+  description: 'Get trending videos with configurable detail level - from basic metrics to comprehensive analysis including privacy status, topic categorization, and technical details. See what\'s going viral in real-time, filtered by category and region. Returns up to 50 trending videos with configurable detail depth.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -23,25 +23,57 @@ export const metadata: ToolMetadata = {
       videoCategoryId: {
         type: 'string',
         description: 'Filter by video category ID'
+      },
+      includeParts: {
+        type: 'array',
+        items: {
+          type: 'string',
+          enum: ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails', 'recordingDetails', 'liveStreamingDetails', 'player', 'localizations', 'fileDetails', 'processingDetails', 'suggestions']
+        },
+        description: 'Parts of video data to include',
+        default: ['snippet', 'statistics']
+      },
+      includeExtended: {
+        type: 'boolean',
+        description: 'Include commonly useful additional parts (status, topicDetails)',
+        default: false
+      },
+      fields: {
+        type: 'string',
+        description: 'Optional field filter for response'
       }
     }
   },
   quotaCost: 1
 };
 
-export default class GetTrendingVideosTool implements ToolRunner<TrendingVideosParams, YouTubeApiResponse<Video>> {
+export default class GetTrendingVideosTool implements ToolRunner<TrendingVideosParams & { includeParts?: string[]; includeExtended?: boolean; fields?: string }, YouTubeApiResponse<Video>> {
   constructor(private client: YouTubeClient) {}
 
-  async run(params: TrendingVideosParams): Promise<ToolResponse<YouTubeApiResponse<Video>>> {
+  async run(params: TrendingVideosParams & { includeParts?: string[]; includeExtended?: boolean; fields?: string }): Promise<ToolResponse<YouTubeApiResponse<Video>>> {
     try {
-      const videoParams = {
-        part: 'snippet,statistics',
+      // Handle part selection with new options
+      let parts: string[];
+      
+      if (params.includeExtended) {
+        parts = ['snippet', 'statistics', 'status', 'topicDetails'];
+      } else {
+        parts = params.includeParts || ['snippet', 'statistics'];
+      }
+      
+      const videoParams: any = {
+        part: parts.join(','),
         chart: 'mostPopular' as const,
         maxResults: params.maxResults || 25,
         regionCode: params.regionCode || 'US',
         videoCategoryId: params.videoCategoryId,
         pageToken: params.pageToken
       };
+      
+      // Add fields parameter if specified
+      if (params.fields) {
+        videoParams.fields = params.fields;
+      }
 
       // Remove undefined values
       Object.keys(videoParams).forEach(key => {

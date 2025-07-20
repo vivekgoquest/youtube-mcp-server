@@ -6,22 +6,46 @@ interface ExtractCommentsOptions {
   videoIds: string[];
   maxCommentsPerVideo?: number;
   includeSentiment?: boolean;
+  includeReplies?: boolean;
+  includeAuthorDetails?: boolean;
+  maxRepliesPerComment?: number;
+}
+
+interface CommentAuthorDetails {
+  displayName: string;
+  channelId: string;
+  channelUrl: string;
+  profileImageUrl: string;
+}
+
+interface CommentWithDetails {
+  text: string;
+  likeCount: number;
+  publishedAt: string;
+  authorDetails?: CommentAuthorDetails;
+  replies?: CommentWithDetails[];
 }
 
 interface CommentAnalysis {
   videoId: string;
   commentCount: number;
-  comments: string[];
+  comments: string[] | CommentWithDetails[];
   sentiment?: {
     positive: number;
     negative: number;
     neutral: number;
   };
+  engagementMetrics?: {
+    totalLikes: number;
+    totalReplies: number;
+    averageLikesPerComment: number;
+    topCommentsByLikes: CommentWithDetails[];
+  };
 }
 
 export const metadata: ToolMetadata = {
   name: 'extract_video_comments',
-  description: 'Extract and analyze comments from YouTube videos to understand viewer feedback, sentiment, and engagement patterns. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, and optional sentiment analysis. Perfect for understanding audience needs, improving content based on feedback, and finding content ideas from viewer questions.',
+  description: 'Extract and analyze comments from YouTube videos with enhanced capabilities including replies and author details. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, reply threads, and optional sentiment analysis. Perfect for comprehensive engagement analysis, author profiling, and thread analysis.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -43,6 +67,23 @@ export const metadata: ToolMetadata = {
         type: 'boolean',
         description: 'Include basic sentiment analysis (default: false)',
         default: false
+      },
+      includeReplies: {
+        type: 'boolean',
+        description: 'Include comment thread replies (default: false)',
+        default: false
+      },
+      includeAuthorDetails: {
+        type: 'boolean',
+        description: 'Include author information (default: false)',
+        default: false
+      },
+      maxRepliesPerComment: {
+        type: 'integer',
+        description: 'Maximum replies to extract per comment (default: 10)',
+        minimum: 1,
+        maximum: 50,
+        default: 10
       }
     },
     required: ['videoIds']
@@ -58,23 +99,61 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
       const startTime = Date.now();
       const maxCommentsPerVideo = options.maxCommentsPerVideo || 100;
       const commentAnalyses: CommentAnalysis[] = [];
+      let totalQuotaUsed = 0;
 
       for (const videoId of options.videoIds) {
         try {
-          const comments = await this.getVideoComments(videoId, maxCommentsPerVideo);
+          const commentsData = await this.getVideoComments(
+            videoId, 
+            maxCommentsPerVideo,
+            options.includeReplies || false,
+            options.includeAuthorDetails || false,
+            options.maxRepliesPerComment || 10
+          );
           
-          const analysis: CommentAnalysis = {
-            videoId,
-            commentCount: comments.length,
-            comments: comments.map(c => c.snippet?.topLevelComment?.snippet?.textDisplay || '')
-          };
+          let analysis: CommentAnalysis;
+          
+          if (options.includeAuthorDetails || options.includeReplies) {
+            // Extract detailed comment data
+            const detailedComments = this.extractDetailedComments(
+              commentsData.comments, 
+              options.includeAuthorDetails || false, 
+              options.includeReplies || false
+            );
+            
+            analysis = {
+              videoId,
+              commentCount: commentsData.totalComments,
+              comments: detailedComments
+            };
+            
+            // Add engagement metrics
+            if (detailedComments.length > 0) {
+              analysis.engagementMetrics = this.calculateEngagementMetrics(detailedComments);
+            }
+          } else {
+            // Simple comment text extraction
+            const commentTexts = commentsData.comments.map(c => 
+              c.snippet?.topLevelComment?.snippet?.textDisplay || ''
+            );
+            
+            analysis = {
+              videoId,
+              commentCount: commentsData.totalComments,
+              comments: commentTexts
+            };
+          }
 
           // Add basic sentiment analysis if requested
           if (options.includeSentiment) {
-            analysis.sentiment = this.analyzeSentiment(analysis.comments);
+            const texts = typeof analysis.comments[0] === 'string'
+              ? analysis.comments as string[]
+              : (analysis.comments as CommentWithDetails[]).map(c => c.text);
+            analysis.sentiment = this.analyzeSentiment(texts);
           }
 
           commentAnalyses.push(analysis);
+          totalQuotaUsed += commentsData.quotaUsed;
         } catch (error) {
           // Comment extraction failed - continue without comments
           if (process.env.DEBUG_CONSOLE === 'true') {
@@ -87,7 +166,7 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
         success: true,
         data: commentAnalyses,
         metadata: {
-          quotaUsed: options.videoIds.length,
+          quotaUsed: totalQuotaUsed,
           requestTime: Date.now() - startTime,
           source: 'youtube-comments-analysis'
         }
@@ -105,13 +184,24 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
     }
   }
 
-  private async getVideoComments(videoId: string, maxResults: number): Promise<any[]> {
+  private async getVideoComments(
+    videoId: string, 
+    maxResults: number,
+    includeReplies: boolean,
+    includeAuthorDetails: boolean,
+    maxRepliesPerComment: number
+  ): Promise<{ comments: any[], totalComments: number, quotaUsed: number }> {
     const comments: any[] = [];
     let pageToken: string | undefined;
+    let quotaUsed = 0;
+
+    // Build dynamic parts array
+    const parts = ['snippet'];
+    if (includeReplies) parts.push('replies');
 
     do {
       const response = await this.client.makeRawRequest('/commentThreads', {
-        part: 'snippet',
+        part: parts.join(','),
         videoId,
         maxResults: Math.min(100, maxResults - comments.length),
         pageToken
@@ -119,9 +209,100 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
 
       comments.push(...(response.items || []));
       pageToken = response.nextPageToken;
+      quotaUsed += 1; // Each API call costs 1 quota unit
     } while (pageToken && comments.length < maxResults);
 
-    return comments;
+    return {
+      comments,
+      totalComments: comments.length,
+      quotaUsed
+    };
+  }
+
+  private extractDetailedComments(
+    comments: any[],
+    includeAuthorDetails: boolean,
+    includeReplies: boolean
+  ): CommentWithDetails[] {
+    return comments.map(commentThread => {
+      const topLevelComment = commentThread.snippet?.topLevelComment;
+      const snippet = topLevelComment?.snippet;
+      
+      const commentDetails: CommentWithDetails = {
+        text: snippet?.textDisplay || '',
+        likeCount: snippet?.likeCount || 0,
+        publishedAt: snippet?.publishedAt || ''
+      };
+
+      // Add author details if requested
+      if (includeAuthorDetails && snippet) {
+        commentDetails.authorDetails = {
+          displayName: snippet.authorDisplayName || '',
+          channelId: snippet.authorChannelId?.value || '',
+          channelUrl: snippet.authorChannelUrl || '',
+          profileImageUrl: snippet.authorProfileImageUrl || ''
+        };
+      }
+
+      // Add replies if requested and available
+      if (includeReplies && commentThread.replies?.comments) {
+        commentDetails.replies = commentThread.replies.comments.map((reply: any) => {
+          const replySnippet = reply.snippet;
+          const replyDetails: CommentWithDetails = {
+            text: replySnippet?.textDisplay || '',
+            likeCount: replySnippet?.likeCount || 0,
+            publishedAt: replySnippet?.publishedAt || ''
+          };
+
+          if (includeAuthorDetails && replySnippet) {
+            replyDetails.authorDetails = {
+              displayName: replySnippet.authorDisplayName || '',
+              channelId: replySnippet.authorChannelId?.value || '',
+              channelUrl: replySnippet.authorChannelUrl || '',
+              profileImageUrl: replySnippet.authorProfileImageUrl || ''
+            };
+          }
+
+          return replyDetails;
+        });
+      }
+
+      return commentDetails;
+    });
+  }
+
+  private calculateEngagementMetrics(comments: CommentWithDetails[]): {
+    totalLikes: number;
+    totalReplies: number;
+    averageLikesPerComment: number;
+    topCommentsByLikes: CommentWithDetails[];
+  } {
+    let totalLikes = 0;
+    let totalReplies = 0;
+
+    comments.forEach(comment => {
+      totalLikes += comment.likeCount;
+      if (comment.replies) {
+        totalReplies += comment.replies.length;
+        comment.replies.forEach(reply => {
+          totalLikes += reply.likeCount;
+        });
+      }
+    });
+
+    const averageLikesPerComment = comments.length > 0 ? totalLikes / comments.length : 0;
+    
+    // Get top 5 comments by likes
+    const topCommentsByLikes = [...comments]
+      .sort((a, b) => b.likeCount - a.likeCount)
+      .slice(0, 5);
+
+    return {
+      totalLikes,
+      totalReplies,
+      averageLikesPerComment,
+      topCommentsByLikes
+    };
   }
 
   private analyzeSentiment(comments: string[]): { positive: number; negative: number; neutral: number } {

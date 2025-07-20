@@ -7,6 +7,8 @@ interface CompetitorAnalysisOptions {
   maxVideos?: number;
   analyzeComments?: boolean;
   timeframe?: 'week' | 'month' | 'quarter' | 'year';
+  includeParts?: string[];
+  includeNetworkAnalysis?: boolean;
 }
 
 interface CompetitorAnalysis {
@@ -26,6 +28,26 @@ interface CompetitorAnalysis {
     averageLikes: number;
     averageComments: number;
     engagementRate: number;
+  };
+  brandingAnalysis?: {
+    channelKeywords: string[];
+    featuredChannels: any[];
+    defaultLanguage?: string;
+    country?: string;
+  };
+  topicCategories?: string[];
+  commentInsights?: {
+    engagementPatterns: any;
+    audienceSentiment: any;
+    volumeTrends: any;
+  };
+  networkConnections?: {
+    featuredChannels: any[];
+    collaborations: any[];
+  };
+  complianceStatus?: {
+    communityGuidelinesGoodStanding?: boolean;
+    copyrightStrikesGoodStanding?: boolean;
   };
 }
 
@@ -48,7 +70,7 @@ export const metadata: ToolMetadata = {
       },
       analyzeComments: {
         type: 'boolean',
-        description: 'Include comment analysis (default: false)',
+        description: 'Include comment analysis for engagement insights (default: false)',
         default: false
       },
       timeframe: {
@@ -56,6 +78,20 @@ export const metadata: ToolMetadata = {
         enum: ['week', 'month', 'quarter', 'year'],
         description: 'Timeframe for analysis',
         default: 'month'
+      },
+      includeParts: {
+        type: 'array',
+        items: {
+          type: 'string',
+          enum: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'auditDetails', 'topicDetails', 'localizations', 'status']
+        },
+        description: 'Channel parts to include in analysis',
+        default: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails']
+      },
+      includeNetworkAnalysis: {
+        type: 'boolean',
+        description: 'Analyze featured channels and collaborations (default: true)',
+        default: true
       }
     },
     required: ['channelId']
@@ -72,9 +108,10 @@ export default class AnalyzeCompetitorTool implements ToolRunner<CompetitorAnaly
     try {
       const maxVideos = options.maxVideos || 100;
       
-      // Get channel details
+      // Get channel details with configurable parts
+      const parts = options.includeParts || ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails'];
       const channelResponse = await this.client.getChannels({
-        part: 'snippet,statistics,contentDetails',
+        part: parts.join(','),
         id: options.channelId
       });
 
@@ -139,6 +176,38 @@ export default class AnalyzeCompetitorTool implements ToolRunner<CompetitorAnaly
           engagementRate
         }
       };
+
+      // Add branding analysis if brandingSettings included
+      if (channel.brandingSettings) {
+        analysis.brandingAnalysis = this.analyzeBrandingStrategy(channel.brandingSettings);
+      }
+
+      // Add topic categories if topicDetails included
+      if (channel.topicDetails) {
+        analysis.topicCategories = this.categorizeChannelTopics(channel.topicDetails);
+      }
+
+      // Add network analysis if requested
+      const channelSettings = channel.brandingSettings?.channel as any;
+      if (options.includeNetworkAnalysis !== false && channelSettings?.featuredChannelsUrls) {
+        analysis.networkConnections = await this.mapChannelNetwork(
+          channelSettings.featuredChannelsUrls,
+          channel
+        );
+      }
+
+      // Add comment insights if requested
+      if (options.analyzeComments && topPerformingVideos.length > 0) {
+        analysis.commentInsights = await this.analyzeAudienceEngagement(
+          topPerformingVideos.slice(0, 5).map(v => v.videoId),
+          this.client
+        );
+      }
+
+      // Add compliance status if auditDetails included
+      if (channel.auditDetails) {
+        analysis.complianceStatus = this.assessComplianceRisk(channel.auditDetails);
+      }
 
       return {
         success: true,
@@ -265,5 +334,116 @@ export default class AnalyzeCompetitorTool implements ToolRunner<CompetitorAnaly
     if (averageDaysBetween < 15) return 'Bi-weekly';
     if (averageDaysBetween < 32) return 'Monthly';
     return 'Irregular';
+  }
+
+  private analyzeBrandingStrategy(brandingSettings: any): any {
+    const channelSection = brandingSettings.channel || {};
+    const keywords = channelSection.keywords ? 
+      channelSection.keywords.split(/\s+/).filter((k: string) => k.length > 0) : [];
+    
+    return {
+      channelKeywords: keywords,
+      featuredChannels: channelSection.featuredChannelsUrls || [],
+      defaultLanguage: channelSection.defaultLanguage,
+      country: channelSection.country
+    };
+  }
+
+  private categorizeChannelTopics(topicDetails: any): string[] {
+    if (!topicDetails.topicCategories) return [];
+    
+    return topicDetails.topicCategories.map((url: string) => {
+      // Extract topic name from Wikipedia URL
+      const parts = url.split('/');
+      const topicName = parts[parts.length - 1].replace(/_/g, ' ');
+      return topicName;
+    });
+  }
+
+  private async mapChannelNetwork(featuredChannelUrls: string[], channel: any): Promise<any> {
+    const featuredChannels = featuredChannelUrls.map(url => ({
+      url,
+      channelId: this.extractChannelIdFromUrl(url)
+    }));
+
+    return {
+      featuredChannels,
+      collaborations: [] // This could be expanded to analyze video descriptions for mentions
+    };
+  }
+
+  private extractChannelIdFromUrl(url: string): string | null {
+    // Extract channel ID from various YouTube URL formats
+    const patterns = [
+      /channel\/(UC[\w-]+)/,
+      /user\/([\w-]+)/,
+      /@([\w-]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  private async analyzeAudienceEngagement(videoIds: string[], client: YouTubeClient): Promise<any> {
+    const engagementData = {
+      totalComments: 0,
+      averageResponseTime: 0,
+      topCommenters: new Map<string, number>(),
+      sentimentBreakdown: { positive: 0, neutral: 0, negative: 0 }
+    };
+
+    for (const videoId of videoIds) {
+      try {
+        const commentsResponse = await client.makeRawRequest('/commentThreads', {
+          part: 'snippet',
+          videoId,
+          maxResults: 100,
+          order: 'relevance'
+        });
+
+        engagementData.totalComments += commentsResponse.pageInfo?.totalResults || 0;
+        
+        // Basic sentiment analysis based on likes
+        commentsResponse.items?.forEach((item: any) => {
+          const likeCount = item.snippet?.topLevelComment?.snippet?.likeCount || 0;
+          if (likeCount > 10) engagementData.sentimentBreakdown.positive++;
+          else if (likeCount > 5) engagementData.sentimentBreakdown.neutral++;
+          else engagementData.sentimentBreakdown.negative++;
+          
+          // Track top commenters
+          const authorName = item.snippet?.topLevelComment?.snippet?.authorDisplayName;
+          if (authorName) {
+            engagementData.topCommenters.set(
+              authorName,
+              (engagementData.topCommenters.get(authorName) || 0) + 1
+            );
+          }
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch comments for video ${videoId}:`, error);
+      }
+    }
+
+    return {
+      engagementPatterns: {
+        totalComments: engagementData.totalComments,
+        commentsPerVideo: engagementData.totalComments / videoIds.length
+      },
+      audienceSentiment: engagementData.sentimentBreakdown,
+      volumeTrends: Array.from(engagementData.topCommenters.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ commenter: name, commentCount: count }))
+    };
+  }
+
+  private assessComplianceRisk(auditDetails: any): any {
+    return {
+      communityGuidelinesGoodStanding: auditDetails.communityGuidelinesGoodStanding,
+      copyrightStrikesGoodStanding: auditDetails.copyrightStrikesGoodStanding
+    };
   }
 }

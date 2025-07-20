@@ -9,6 +9,8 @@ interface KeywordResearchWorkflowOptions {
   maxVideosToAnalyze?: number;
   includeCompetitorAnalysis?: boolean;
   generateKeywordCloud?: boolean;
+  useEnrichedData?: boolean;
+  includeTopicAnalysis?: boolean;
 }
 
 interface WorkflowResult {
@@ -58,6 +60,16 @@ export const metadata: ToolMetadata = {
         type: 'boolean',
         description: 'Generate keyword cloud visualization (default: true)',
         default: true
+      },
+      useEnrichedData: {
+        type: 'boolean',
+        description: 'Enable fetching full video and channel statistics for more accurate analysis (default: false)',
+        default: false
+      },
+      includeTopicAnalysis: {
+        type: 'boolean',
+        description: 'Leverage topicDetails for semantic keyword clustering (default: true)',
+        default: true
       }
     },
     required: ['seedKeywords']
@@ -87,7 +99,11 @@ export default class KeywordResearchWorkflowTool implements ChainableToolRunner<
       }
 
       // Step 1: Analyze seed keywords
-      const seedAnalysis = await this.analyzeSeedKeywords(options.seedKeywords);
+      const seedAnalysis = await this.analyzeSeedKeywords(
+        options.seedKeywords,
+        options.useEnrichedData || false,
+        options.includeTopicAnalysis !== false
+      );
       totalQuotaUsed += 100; // Estimated quota for seed analysis
 
       // Step 2: Find and analyze videos for each seed keyword
@@ -156,7 +172,11 @@ export default class KeywordResearchWorkflowTool implements ChainableToolRunner<
     }
   }
 
-  private async analyzeSeedKeywords(seedKeywords: string[]): Promise<any> {
+  private async analyzeSeedKeywords(
+    seedKeywords: string[],
+    useEnrichedData: boolean,
+    includeTopicAnalysis: boolean
+  ): Promise<any> {
     const analysis = {
       keywords: [] as any[],
       totalSearchVolume: 0,
@@ -189,18 +209,54 @@ export default class KeywordResearchWorkflowTool implements ChainableToolRunner<
         }
       });
 
+      // Enrich video data if requested
+      let enrichedVideos = items.slice(0, 5);
+      if (useEnrichedData && enrichedVideos.length > 0) {
+        // Get full video details for accurate metrics
+        const videoIds = enrichedVideos
+          .filter((item: any) => item.id?.videoId)
+          .map((item: any) => item.id.videoId);
+        
+        if (videoIds.length > 0) {
+          const enrichmentResult = await this.registry.executeTool('get_video_details', {
+            videoId: videoIds.join(','),
+            includeParts: includeTopicAnalysis 
+              ? ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails']
+              : ['snippet', 'statistics', 'contentDetails']
+          }, this.client);
+
+          if (enrichmentResult.success && enrichmentResult.data) {
+            const enrichedData = enrichmentResult.data as any;
+            enrichedVideos = Array.isArray(enrichedData) ? enrichedData : [enrichedData];
+          }
+        }
+      }
+
       const keywordData = {
         keyword,
         searchVolume: totalResults,
         resultCount: items.length,
         competition: this.calculateCompetition(items.length, totalResults),
-        topVideos: items.slice(0, 5).map((item: any) => ({
-          title: item.snippet?.title,
-          channelTitle: item.snippet?.channelTitle,
-          channelId: item.snippet?.channelId,
-          publishedAt: item.snippet?.publishedAt,
-          videoId: item.id?.videoId
-        }))
+        topVideos: enrichedVideos.slice(0, 5).map((item: any) => {
+          const isEnriched = item.statistics !== undefined;
+          return {
+            title: item.snippet?.title,
+            channelTitle: item.snippet?.channelTitle,
+            channelId: item.snippet?.channelId,
+            publishedAt: item.snippet?.publishedAt,
+            videoId: isEnriched ? item.id : item.id?.videoId,
+            // Include enriched data if available
+            ...(isEnriched && {
+              viewCount: parseInt(item.statistics?.viewCount || '0'),
+              likeCount: parseInt(item.statistics?.likeCount || '0'),
+              commentCount: parseInt(item.statistics?.commentCount || '0'),
+              duration: item.contentDetails?.duration,
+              tags: item.snippet?.tags || [],
+              topicCategories: item.topicDetails?.topicCategories || [],
+              privacyStatus: item.status?.privacyStatus
+            })
+          };
+        })
       };
 
       analysis.keywords.push(keywordData);

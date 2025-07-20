@@ -5,11 +5,15 @@ import { ToolResponse, Channel } from '../types.js';
 interface GetChannelDetailsOptions {
   channelId: string;
   includeParts?: string[];
+  includeBranding?: boolean;
+  includeCompliance?: boolean;
+  includeAll?: boolean;
+  fields?: string;
 }
 
 export const metadata: ToolMetadata = {
   name: 'get_channel_details',
-  description: 'Get COMPLETE channel statistics including subscriber count, total views, video count, and upload playlist ID. Use this to SIZE UP any channel - competitor or your own. Returns data needed for deeper analysis: subscriber count (to gauge authority), total views (lifetime performance), video count (content volume), and uploads playlist ID (for analyze_channel_videos). Get channel ID from search_channels first. ESSENTIAL before competitor analysis.',
+  description: 'Get detailed channel information including branding analysis (keywords, featured channels), topic categorization, compliance status, content ownership details, multilingual support, and privacy settings.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -21,10 +25,29 @@ export const metadata: ToolMetadata = {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['snippet', 'statistics', 'contentDetails']
+          enum: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'auditDetails', 'contentOwnerDetails', 'topicDetails', 'localizations', 'status']
         },
         description: 'Parts of channel data to include',
-        default: ['snippet', 'statistics', 'contentDetails']
+        default: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails']
+      },
+      includeBranding: {
+        type: 'boolean',
+        description: 'Include brandingSettings for keywords and featured channels',
+        default: false
+      },
+      includeCompliance: {
+        type: 'boolean',
+        description: 'Include auditDetails for compliance status',
+        default: false
+      },
+      includeAll: {
+        type: 'boolean',
+        description: 'Request all available parts',
+        default: false
+      },
+      fields: {
+        type: 'string',
+        description: 'Optional field filter for response'
       }
     },
     required: ['channelId']
@@ -49,11 +72,34 @@ export default class GetChannelDetailsTool implements ToolRunner<GetChannelDetai
         };
       }
 
-      const parts = options.includeParts || ['snippet', 'statistics', 'contentDetails'];
-      const result = await this.client.getChannels({
+      // Handle part selection with new options
+      let parts: string[] = [];
+      
+      if (options.includeAll) {
+        parts = ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'auditDetails', 'contentOwnerDetails', 'topicDetails', 'localizations', 'status'];
+      } else {
+        parts = options.includeParts || ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails'];
+        
+        // Add specific parts based on boolean flags
+        if (options.includeBranding && !parts.includes('brandingSettings')) {
+          parts.push('brandingSettings');
+        }
+        if (options.includeCompliance && !parts.includes('auditDetails')) {
+          parts.push('auditDetails');
+        }
+      }
+      
+      const params: any = {
         part: parts.join(','),
         id: options.channelId
-      });
+      };
+      
+      // Add fields parameter if specified
+      if (options.fields) {
+        params.fields = options.fields;
+      }
+      
+      const result = await this.client.getChannels(params);
 
       if (result.items.length === 0) {
         return {

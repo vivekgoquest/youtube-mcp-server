@@ -5,11 +5,13 @@ import { ToolResponse, Playlist } from '../types.js';
 interface GetPlaylistDetailsOptions {
   playlistId: string;
   includeParts?: string[];
+  includeAll?: boolean;
+  fields?: string;
 }
 
 export const metadata: ToolMetadata = {
   name: 'get_playlist_details',
-  description: 'Get FULL details about any YouTube playlist including video count, title, description, and owner channel. Use this to understand how successful creators structure content series. Returns metadata needed to analyze playlist strategy. Get playlist ID from search_playlists first. USEFUL for: understanding content progression, analyzing series structure, finding all videos in a topic. Note: To get actual video list, use YouTube Data API directly with the playlist ID.',
+  description: 'Get comprehensive playlist information including privacy status for access control analysis, embed code generation for integration, and multilingual support for international content.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -21,10 +23,19 @@ export const metadata: ToolMetadata = {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['snippet', 'contentDetails']
+          enum: ['snippet', 'contentDetails', 'status', 'player', 'localizations']
         },
         description: 'Parts of playlist data to include',
-        default: ['snippet', 'contentDetails']
+        default: ['snippet', 'contentDetails', 'status']
+      },
+      includeAll: {
+        type: 'boolean',
+        description: 'Request all available parts',
+        default: false
+      },
+      fields: {
+        type: 'string',
+        description: 'Optional field filter for response'
       }
     },
     required: ['playlistId']
@@ -49,11 +60,26 @@ export default class GetPlaylistDetailsTool implements ToolRunner<GetPlaylistDet
         };
       }
 
-      const parts = options.includeParts || ['snippet', 'contentDetails'];
-      const result = await this.client.getPlaylists({
+      // Handle part selection with new options
+      let parts: string[];
+      
+      if (options.includeAll) {
+        parts = ['snippet', 'contentDetails', 'status', 'player', 'localizations'];
+      } else {
+        parts = options.includeParts || ['snippet', 'contentDetails', 'status'];
+      }
+      
+      const params: any = {
         part: parts.join(','),
         id: options.playlistId
-      });
+      };
+      
+      // Add fields parameter if specified
+      if (options.fields) {
+        params.fields = options.fields;
+      }
+      
+      const result = await this.client.getPlaylists(params);
 
       if (result.items.length === 0) {
         return {

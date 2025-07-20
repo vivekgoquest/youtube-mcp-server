@@ -5,11 +5,14 @@ import { ToolResponse, Video } from '../types.js';
 interface GetVideoDetailsOptions {
   videoId: string;
   includeParts?: string[];
+  includeAll?: boolean;
+  includeExtended?: boolean;
+  fields?: string;
 }
 
 export const metadata: ToolMetadata = {
   name: 'get_video_details',
-  description: 'Get COMPLETE details about any YouTube video including exact view count, likes, comments, tags, duration, and upload date. Use this to analyze WHY a video succeeded - examine titles, descriptions, tags of viral videos. Returns data you need for reverse engineering success. Get video ID from search_videos first. ESSENTIAL for: studying individual viral videos, extracting exact tags competitors use, understanding engagement ratios. Returns all metadata YouTube provides.',
+  description: 'Get comprehensive video information including privacy status, topic categorization, geo/temporal recording data, live streaming details, embed codes, multilingual support, technical file details, and processing diagnostics.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -21,10 +24,24 @@ export const metadata: ToolMetadata = {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['snippet', 'statistics', 'contentDetails']
+          enum: ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails', 'recordingDetails', 'liveStreamingDetails', 'player', 'localizations', 'fileDetails', 'processingDetails', 'suggestions']
         },
         description: 'Parts of video data to include',
-        default: ['snippet', 'statistics', 'contentDetails']
+        default: ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails']
+      },
+      includeAll: {
+        type: 'boolean',
+        description: 'Request all available parts',
+        default: false
+      },
+      includeExtended: {
+        type: 'boolean', 
+        description: 'Request commonly useful additional parts (status, topicDetails, recordingDetails, player)',
+        default: false
+      },
+      fields: {
+        type: 'string',
+        description: 'Optional field filter for fine-grained response control'
       }
     },
     required: ['videoId']
@@ -49,11 +66,28 @@ export default class GetVideoDetailsTool implements ToolRunner<GetVideoDetailsOp
         };
       }
 
-      const parts = options.includeParts || ['snippet', 'statistics', 'contentDetails'];
-      const result = await this.client.getVideos({
+      // Handle part selection with new options
+      let parts: string[];
+      
+      if (options.includeAll) {
+        parts = ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails', 'recordingDetails', 'liveStreamingDetails', 'player', 'localizations', 'fileDetails', 'processingDetails', 'suggestions'];
+      } else if (options.includeExtended) {
+        parts = ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails', 'recordingDetails', 'player'];
+      } else {
+        parts = options.includeParts || ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails'];
+      }
+      
+      const params: any = {
         part: parts.join(','),
         id: options.videoId
-      });
+      };
+      
+      // Add fields parameter if specified
+      if (options.fields) {
+        params.fields = options.fields;
+      }
+      
+      const result = await this.client.getVideos(params);
 
       if (result.items.length === 0) {
         return {

@@ -4,7 +4,7 @@ import { ToolResponse, SearchChannelsParams, YouTubeApiResponse, SearchResult } 
 
 export const metadata: ToolMetadata = {
   name: 'search_channels',
-  description: 'Find YouTube channels by name/keyword to identify competitors or collaboration partners. Returns channel IDs needed for analyze_competitor and get_channel_details. Use this FIRST when researching competitors - search by niche keywords to discover who dominates your space. Returns up to 50 channels with subscriber counts visible in search results. TIP: Sort by viewCount to find channels with highest total views (often better than subscriber count).',
+  description: 'Search for YouTube channels with optional enrichment for full details. Channel enrichment provides subscriber counts, branding analysis, topic categorization, and compliance status.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -28,6 +28,26 @@ export const metadata: ToolMetadata = {
       regionCode: {
         type: 'string',
         description: 'Return results for specific region (ISO 3166-1 alpha-2)'
+      },
+      enrichDetails: {
+        oneOf: [
+          { type: 'boolean' },
+          {
+            type: 'object',
+            properties: {
+              parts: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                  enum: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails', 'status', 'auditDetails', 'contentOwnerDetails', 'localizations']
+                },
+                default: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails']
+              }
+            }
+          }
+        ],
+        description: 'Enrich search results with full channel details. Boolean or object with parts array.',
+        default: false
       }
     },
     required: ['query']
@@ -35,10 +55,10 @@ export const metadata: ToolMetadata = {
   quotaCost: 100
 };
 
-export default class SearchChannelsTool implements ToolRunner<SearchChannelsParams, YouTubeApiResponse<SearchResult>> {
+export default class SearchChannelsTool implements ToolRunner<SearchChannelsParams & { enrichDetails?: boolean | { parts: string[] } }, YouTubeApiResponse<SearchResult>> {
   constructor(private client: YouTubeClient) {}
 
-  async run(params: SearchChannelsParams): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
+  async run(params: SearchChannelsParams & { enrichDetails?: boolean | { parts: string[] } }): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
     try {
       if (!params.query || params.query.trim() === '') {
         return {
@@ -65,12 +85,72 @@ export default class SearchChannelsTool implements ToolRunner<SearchChannelsPara
       });
 
       const response = await this.client.search(searchParams);
+      
+      // Perform enrichment if requested
+      let enrichedResponse = response;
+      let totalQuotaUsed = 100; // Base search quota
+      
+      if (params.enrichDetails && response.items && response.items.length > 0) {
+        // Extract channel IDs from search results
+        const channelIds = response.items
+          .filter(item => item.id?.kind === 'youtube#channel' && item.id?.channelId)
+          .map(item => item.id!.channelId!);
+        
+        if (channelIds.length > 0) {
+          // Determine parts to fetch
+          const parts = typeof params.enrichDetails === 'object' && params.enrichDetails.parts
+            ? params.enrichDetails.parts
+            : ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails'];
+          
+          // Batch channel IDs (YouTube API allows up to 50 per request)
+          const enrichedChannels: any[] = [];
+          for (let i = 0; i < channelIds.length; i += 50) {
+            const batch = channelIds.slice(i, i + 50);
+            const channelDetails = await this.client.getChannels({
+              part: parts.join(','),
+              id: batch.join(',')
+            });
+            
+            if (channelDetails.items) {
+              enrichedChannels.push(...channelDetails.items);
+            }
+            
+            // Add quota for each batch (1 unit per batch)
+            totalQuotaUsed += 1;
+          }
+          
+          // Merge enriched data back into search results
+          enrichedResponse = {
+            ...response,
+            items: response.items.map(searchItem => {
+              if (searchItem.id?.kind === 'youtube#channel' && searchItem.id?.channelId) {
+                const enrichedChannel = enrichedChannels.find(c => c.id === searchItem.id!.channelId);
+                if (enrichedChannel) {
+                  return {
+                    ...searchItem,
+                    snippet: enrichedChannel.snippet || searchItem.snippet,
+                    statistics: enrichedChannel.statistics,
+                    contentDetails: enrichedChannel.contentDetails,
+                    brandingSettings: enrichedChannel.brandingSettings,
+                    topicDetails: enrichedChannel.topicDetails,
+                    status: enrichedChannel.status,
+                    auditDetails: enrichedChannel.auditDetails,
+                    contentOwnerDetails: enrichedChannel.contentOwnerDetails,
+                    localizations: enrichedChannel.localizations
+                  };
+                }
+              }
+              return searchItem;
+            })
+          };
+        }
+      }
 
       return {
         success: true,
-        data: response,
+        data: enrichedResponse,
         metadata: {
-          quotaUsed: 100,
+          quotaUsed: totalQuotaUsed,
           requestTime: 0,
           source: 'youtube-search-channels'
         }

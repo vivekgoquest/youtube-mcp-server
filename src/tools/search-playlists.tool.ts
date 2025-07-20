@@ -4,7 +4,7 @@ import { ToolResponse, SearchPlaylistsParams, YouTubeApiResponse, SearchResult }
 
 export const metadata: ToolMetadata = {
   name: 'search_playlists',
-  description: 'Search for curated playlists to discover content organization patterns and find comprehensive topic coverage. Returns playlist IDs for deeper analysis. Use this to: find how experts organize content series, discover all videos on niche topics, understand content progression strategies. Can filter by specific channel to see their content structure. Returns up to 50 playlists with video counts. TIP: Popular playlists often indicate in-demand content series you should create.',
+  description: 'Search for YouTube playlists with optional enrichment for full details. Playlist enrichment provides video counts, privacy status, and multilingual metadata.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -32,16 +32,36 @@ export const metadata: ToolMetadata = {
       regionCode: {
         type: 'string',
         description: 'Return results for specific region (ISO 3166-1 alpha-2)'
+      },
+      enrichDetails: {
+        oneOf: [
+          { type: 'boolean' },
+          {
+            type: 'object',
+            properties: {
+              parts: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                  enum: ['snippet', 'contentDetails', 'status', 'player', 'localizations']
+                },
+                default: ['snippet', 'contentDetails', 'status', 'localizations']
+              }
+            }
+          }
+        ],
+        description: 'Enrich search results with full playlist details. Boolean or object with parts array.',
+        default: false
       }
     }
   },
   quotaCost: 100
 };
 
-export default class SearchPlaylistsTool implements ToolRunner<SearchPlaylistsParams, YouTubeApiResponse<SearchResult>> {
+export default class SearchPlaylistsTool implements ToolRunner<SearchPlaylistsParams & { enrichDetails?: boolean | { parts: string[] } }, YouTubeApiResponse<SearchResult>> {
   constructor(private client: YouTubeClient) {}
 
-  async run(params: SearchPlaylistsParams): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
+  async run(params: SearchPlaylistsParams & { enrichDetails?: boolean | { parts: string[] } }): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
     try {
       if (!params.query && !params.channelId) {
         return {
@@ -69,12 +89,68 @@ export default class SearchPlaylistsTool implements ToolRunner<SearchPlaylistsPa
       });
 
       const response = await this.client.search(searchParams);
+      
+      // Perform enrichment if requested
+      let enrichedResponse = response;
+      let totalQuotaUsed = 100; // Base search quota
+      
+      if (params.enrichDetails && response.items && response.items.length > 0) {
+        // Extract playlist IDs from search results
+        const playlistIds = response.items
+          .filter(item => item.id?.kind === 'youtube#playlist' && item.id?.playlistId)
+          .map(item => item.id!.playlistId!);
+        
+        if (playlistIds.length > 0) {
+          // Determine parts to fetch
+          const parts = typeof params.enrichDetails === 'object' && params.enrichDetails.parts
+            ? params.enrichDetails.parts
+            : ['snippet', 'contentDetails', 'status', 'localizations'];
+          
+          // Batch playlist IDs (YouTube API allows up to 50 per request)
+          const enrichedPlaylists: any[] = [];
+          for (let i = 0; i < playlistIds.length; i += 50) {
+            const batch = playlistIds.slice(i, i + 50);
+            const playlistDetails = await this.client.getPlaylists({
+              part: parts.join(','),
+              id: batch.join(',')
+            });
+            
+            if (playlistDetails.items) {
+              enrichedPlaylists.push(...playlistDetails.items);
+            }
+            
+            // Add quota for each batch (1 unit per batch)
+            totalQuotaUsed += 1;
+          }
+          
+          // Merge enriched data back into search results
+          enrichedResponse = {
+            ...response,
+            items: response.items.map(searchItem => {
+              if (searchItem.id?.kind === 'youtube#playlist' && searchItem.id?.playlistId) {
+                const enrichedPlaylist = enrichedPlaylists.find(p => p.id === searchItem.id!.playlistId);
+                if (enrichedPlaylist) {
+                  return {
+                    ...searchItem,
+                    snippet: enrichedPlaylist.snippet || searchItem.snippet,
+                    contentDetails: enrichedPlaylist.contentDetails,
+                    status: enrichedPlaylist.status,
+                    player: enrichedPlaylist.player,
+                    localizations: enrichedPlaylist.localizations
+                  };
+                }
+              }
+              return searchItem;
+            })
+          };
+        }
+      }
 
       return {
         success: true,
-        data: response,
+        data: enrichedResponse,
         metadata: {
-          quotaUsed: 100,
+          quotaUsed: totalQuotaUsed,
           requestTime: 0,
           source: 'youtube-search-playlists'
         }

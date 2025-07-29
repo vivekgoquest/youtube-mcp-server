@@ -38,7 +38,7 @@ class YouTubeMCPServerHandler {
     this.mcpServer = new Server(
       {
         name: 'youtube-mcp-server',
-        version: '1.0.0',
+        version: '1.1.0',
       },
       {
         capabilities: {

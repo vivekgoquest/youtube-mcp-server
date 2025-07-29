@@ -51,13 +51,24 @@ function testBuild() {
     return false;
   }
   
-  if (!existsSync('./dist/index.js')) {
-    console.log('❌ dist/index.js not found');
-    console.log('💡 Run: npm run build');
+  // Check for both possible build outputs
+  const prodBuildExists = existsSync('./dist/index.js');
+  const devBuildExists = existsSync('./dist/src/index.js');
+  
+  if (!prodBuildExists && !devBuildExists) {
+    console.log('❌ No build output found');
+    console.log('💡 Run: npm run build:prod (recommended) or npm run build');
     return false;
   }
   
-  console.log('✅ Build files found');
+  if (devBuildExists && !prodBuildExists) {
+    console.log('⚠️  Development build found (dist/src/index.js)');
+    console.log('💡 For production use, run: npm run build:prod');
+    console.log('   This will create the expected dist/index.js');
+  } else if (prodBuildExists) {
+    console.log('✅ Production build found (dist/index.js)');
+  }
+  
   return true;
 }
 
@@ -98,11 +109,17 @@ async function testImport() {
   console.log('\n📋 Test 4: Basic Import Test');
   
   try {
+    // Determine which build output to use
+    const prodBuildPath = './dist/index.js';
+    const devBuildPath = './dist/src/index.js';
+    const importPath = existsSync(prodBuildPath) ? prodBuildPath : devBuildPath;
+    
     // Try to import the main server file
-    const { YouTubeMCPServerHandler } = await import('./dist/index.js');
+    const { YouTubeMCPServerHandler } = await import(importPath);
     
     if (typeof YouTubeMCPServerHandler === 'function') {
       console.log('✅ Server class imported successfully');
+      console.log(`   Using: ${importPath}`);
       return true;
     } else {
       console.log('❌ Server class not found in imports');
@@ -122,7 +139,12 @@ async function testServerCreation() {
   console.log('\n📋 Test 5: Server Instantiation Test');
   
   try {
-    const { YouTubeMCPServerHandler } = await import('./dist/index.js');
+    // Determine which build output to use
+    const prodBuildPath = './dist/index.js';
+    const devBuildPath = './dist/src/index.js';
+    const importPath = existsSync(prodBuildPath) ? prodBuildPath : devBuildPath;
+    
+    const { YouTubeMCPServerHandler } = await import(importPath);
     
     // Try to create a server instance
     const server = new YouTubeMCPServerHandler();
@@ -153,7 +175,12 @@ async function testServerStartup() {
   console.log('\n📋 Test 6: MCP Server Startup Test');
   
   return new Promise((resolve) => {
-    const serverProcess = spawn('node', ['dist/index.js'], {
+    // Determine which build output to use
+    const prodBuildPath = 'dist/index.js';
+    const devBuildPath = 'dist/src/index.js';
+    const startPath = existsSync(prodBuildPath) ? prodBuildPath : devBuildPath;
+    
+    const serverProcess = spawn('node', [startPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env }
     });
@@ -256,8 +283,9 @@ async function runAllTests() {
     console.log('💡 Common fixes:');
     console.log('   - Set YOUTUBE_API_KEY environment variable');
     console.log('   - Run npm install');
-    console.log('   - Run npm run build');
+    console.log('   - Run npm run build:prod (recommended)');
     console.log('   - Check that all source files are present');
+    console.log('   - Ensure YOUTUBE_API_KEY is set correctly');
   }
   
   // Return overall success

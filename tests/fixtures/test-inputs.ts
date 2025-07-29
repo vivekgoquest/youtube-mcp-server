@@ -455,6 +455,7 @@ export const TOOL_TEST_INPUTS = {
 } as const;
 
 // Quota usage estimates for each tool (in API quota units)
+// NOTE: These values should match the 'quotaCost' field in each tool's metadata (src/tools/*.tool.ts)
 export const TOOL_QUOTA_ESTIMATES = {
   search_videos: 100,
   get_video_details: 1,
@@ -464,18 +465,18 @@ export const TOOL_QUOTA_ESTIMATES = {
   get_playlist_details: 1,
   get_trending_videos: 1,
   advanced_search: 100,
-  analyze_channel_videos: 101, // channel details + videos
-  analyze_competitor: 201, // multiple channels + videos
+  analyze_channel_videos: 2, // Updated to match tool metadata
+  analyze_competitor: 2, // Updated to match tool metadata
   analyze_keyword_opportunities: 100,
   analyze_keywords: 100,
   analyze_viral_videos: 100,
-  discover_channel_network: 101,
+  discover_channel_network: 2, // Updated to match tool metadata
   extract_keywords_from_text: 0, // no API calls
   extract_keywords_from_videos: 1,
   extract_video_comments: 1,
-  find_content_gaps: 201, // competitor analysis + search
+  find_content_gaps: 100, // Updated to match tool metadata
   generate_keyword_cloud: 0, // no API calls
-  keyword_research_workflow: 300 // comprehensive workflow
+  keyword_research_workflow: 200 // Updated to match tool metadata
 } as const;
 
 // Helper function to get minimal input for any tool

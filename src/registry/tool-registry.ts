@@ -8,7 +8,7 @@ export class ToolRegistry {
   private tools: Map<string, { metadata: ToolMetadata; constructor: ToolConstructor | ChainableToolConstructor }> = new Map();
   private loaded = false;
 
-  constructor() {
+  constructor(private toolsDir?: string) {
     // Tools will be loaded explicitly via loadAllTools()
   }
 
@@ -17,7 +17,7 @@ export class ToolRegistry {
 
     try {
       const currentDir = dirname(fileURLToPath(import.meta.url));
-      const toolsDir = join(currentDir, '..', 'tools');
+      const toolsDir = this.toolsDir ?? join(currentDir, '..', 'tools');
       
       const files = readdirSync(toolsDir).filter(file => file.endsWith('.tool.ts') || file.endsWith('.tool.js'));
       

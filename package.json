@@ -1,60 +1,76 @@
 {
   "name": "youtube-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Comprehensive YouTube Data API v3 MCP Server for content research, analytics, and keyword discovery workflows",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "youtube-mcp-server": "bin/youtube-mcp-server.js"
+    "youtube-mcp-server": "dist/cli/youtube-mcp-server.js"
   },
   "files": [
-    "bin/**/*",
     "dist/**/*",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/src/index.js",
-    "build:with-debug": "tsc && chmod +x dist/src/index.js && npm run debug:post-build",
-    "test:quick": "tsc --noEmit",
-    "debug:post-build": "node dist/debug/integration/server-integration.js post-build",
-    "debug:manual": "node dist/debug/integration/server-integration.js manual-debug",
-    "build:prod": "tsc -p tsconfig.prod.json && chmod +x dist/index.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "generate:schemas": "node scripts/generate-schemas.js",
+    "test:schemas": "npm run generate:schemas && npm test",
+    "prebuild": "npm run generate:schemas",
+    "build": "tsc && chmod +x dist/index.js && chmod +x dist/cli/mcp-diagnostics.js && chmod +x dist/cli/youtube-mcp-server.js",
+    "test:quick": "npm run test:interface:minimal",
+    "build:prod": "tsc -p tsconfig.prod.json && chmod +x dist/index.js && chmod +x dist/cli/mcp-diagnostics.js && chmod +x dist/cli/youtube-mcp-server.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:mcp": "scripts/test-mcp-inspector.sh",
-    "test:discovery": "node scripts/verify-tool-discovery.js",
-    "test:e2e": "FORCE_SEQUENTIAL=true jest tests/e2e/ --runInBand --testTimeout=30000",
+    "test:discovery": "node dist/cli/mcp-diagnostics.js discovery",
+    "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' FORCE_SEQUENTIAL=true jest tests/e2e/ --runInBand --testTimeout=30000",
+    "validate:responses": "node scripts/validate-response.js",
     "test:inspector": "npm run test:discovery && npm run test:mcp && npm run test:e2e",
-    "test:interface": "jest tests/tool-interface-compliance.test.ts --runInBand --verbose --testTimeout=20000",
-    "test:interface:watch": "jest tests/tool-interface-compliance.test.ts --runInBand --watch",
-    "test:interface:minimal": "COMPLIANCE_TEST_MODE=minimal jest tests/tool-interface-compliance.test.ts --runInBand",
-    "test:interface:budget": "MAX_QUOTA_FOR_COMPLIANCE_TESTS=300 jest tests/tool-interface-compliance.test.ts --runInBand",
-    "test:quota-check": "node scripts/check-quota-usage.js",
-    "test:api-health": "node scripts/verify-api-health.js",
-    "test:compliance-report": "jest tests/tool-interface-compliance.test.ts --runInBand --json --outputFile=compliance-report.json",
-    "test:integration": "FORCE_SEQUENTIAL=true jest tests/youtube-client.test.ts tests/mcp-server.test.ts --runInBand --testTimeout=15000",
-    "verify:tools": "node scripts/verify-tool-discovery.js",
-    "test:all": "npm run test && npm run test:interface && npm run test:inspector",
+    "test:interface": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tool-interface-compliance.test.ts --runInBand --verbose --testTimeout=20000",
+    "test:interface:watch": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tool-interface-compliance.test.ts --runInBand --watch",
+    "test:interface:minimal": "NODE_OPTIONS='--experimental-vm-modules' COMPLIANCE_TEST_MODE=minimal jest tests/tool-interface-compliance.test.ts --runInBand",
+    "test:interface:budget": "NODE_OPTIONS='--experimental-vm-modules' MAX_QUOTA_FOR_COMPLIANCE_TESTS=300 jest tests/tool-interface-compliance.test.ts --runInBand",
+    "test:quota-check": "node dist/cli/mcp-diagnostics.js quota",
+    "test:api-health": "node dist/cli/mcp-diagnostics.js health",
+    "test:compliance-report": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tool-interface-compliance.test.ts --runInBand --json --outputFile=compliance-report.json",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' FORCE_SEQUENTIAL=true jest tests/youtube-client.test.ts tests/mcp-server.test.ts --runInBand --testTimeout=15000",
+    "test:tool": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tools/ --runInBand --testTimeout=30000",
+    "test:tools": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tools/ --runInBand --testTimeout=30000",
+    "test:tools:watch": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tools/ --runInBand --watch",
+    "test:tools:expensive": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tools/ --runInBand --testTimeout=30000 --testNamePattern='(search|analyze|workflow)'",
+    "test:tools:cheap": "NODE_OPTIONS='--experimental-vm-modules' jest tests/tools/ --runInBand --testTimeout=30000 --testNamePattern='(get|extract|generate)'",
+    "test:hierarchical": "npm run test:interface && echo '\\n📋 Interface tests passed! Use npm run test:tool -- <tool-name> for individual tool debugging'",
+    "test:single-path": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration/direct-registry-validation.test.ts --testNamePattern='single-path' --runInBand",
+    "test:quota-consistency": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration/direct-registry-validation.test.ts --testNamePattern='quota' --runInBand",
+    "test:error-handling": "NODE_OPTIONS='--experimental-vm-modules' jest tests/**/*.test.ts --testNamePattern='error' --runInBand",
+    "test:no-fallbacks": "grep -r 'graceful\\|fallback\\|degradation' src/tools --include='*.tool.ts' || echo 'No fallback patterns found ✅'",
+    "test:debug": "NODE_OPTIONS='--experimental-vm-modules' DEBUG=true jest --runInBand --verbose --testTimeout=60000",
+    "test:local": "echo 'Tip: Create tests/youtube-api.local.json for hardcoded API key' && npm test",
+    "setup:local-testing": "cp tests/youtube-api.local.template.json tests/youtube-api.local.json && echo 'Edit tests/youtube-api.local.json with your API key'",
+    "start": "node dist/index.js",
+    "verify:tools": "node dist/cli/mcp-diagnostics.js discovery",
+    "test:all": "npm run test && npm run test:interface && npm run test:inspector && npm run test:hierarchical && npm run test:single-path && npm run test:quota-consistency",
+    "test:validate-architecture": "npm run test:single-path && npm run test:quota-consistency && npm run test:no-fallbacks",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/src/index.js",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run build:prod && (npm test || echo 'Tests skipped - no API key available')",
     "clean": "rm -rf dist",
     "cleanup": "node scripts/cleanup.js",
+    "diagnostics": "node dist/cli/mcp-diagnostics.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build:prod && (npm test || echo 'Tests skipped - no API key available')",
     "version": "npm run build:prod && git add -A dist",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "lint-docs": "markdownlint docs/**/*.md"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/youtube-mcp-server.git"
+    "url": "git+https://github.com/vivekgoquest/youtube-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/youtube-mcp-server/issues"
+    "url": "https://github.com/vivekgoquest/youtube-mcp-server/issues"
   },
-  "homepage": "https://github.com/yourusername/youtube-mcp-server#readme",
+  "homepage": "https://github.com/vivekgoquest/youtube-mcp-server#readme",
   "keywords": [
     "youtube",
     "mcp",
@@ -73,7 +89,7 @@
   ],
   "author": {
     "name": "YouTube MCP Server",
-    "url": "https://github.com/yourusername/youtube-mcp-server"
+    "url": "https://github.com/vivekgoquest/youtube-mcp-server"
   },
   "license": "MIT",
   "engines": {
@@ -81,17 +97,24 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
     "axios": "^1.6.0",
     "compromise": "^14.0.0",
+    "markdownlint-cli": "^0.45.0",
     "natural": "^6.0.0"
   },
   "devDependencies": {
+    "@types/chalk": "^0.4.31",
     "@types/jest": "^29.5.0",
     "@types/natural": "^5.0.0",
     "@types/node": "^20.0.0",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0",
     "jest": "^29.7.0",
     "jest-json-schema": "^6.1.0",
     "ts-jest": "^29.1.0",
+    "ts-json-schema-generator": "^1.5.0",
     "tsx": "^4.0.0",
     "typescript": "^5.3.0"
   }

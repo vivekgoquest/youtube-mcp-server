@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Find the actual index.js file relative to this script
-const indexPath = join(__dirname, '..', 'dist', 'index.js');
+const indexPath = join(__dirname, '../index.js');
 
 // Pass through all arguments and environment variables
 const child = spawn(process.execPath, [indexPath, ...process.argv.slice(2)], {

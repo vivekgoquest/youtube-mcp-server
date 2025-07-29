@@ -1,12 +1,52 @@
 import { YouTubeClient } from '../src/youtube-client.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-// Test environment setup
-// Verify YouTube API key is available for real API testing
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load API key from youtube-api.local.json
 if (!process.env.YOUTUBE_API_KEY) {
-  throw new Error(
-    'YOUTUBE_API_KEY environment variable is required for running tests.\n' +
-    'Please set your YouTube API key: export YOUTUBE_API_KEY="your-api-key"'
-  );
+    const configFile = path.join(__dirname, 'youtube-api.local.json');
+    
+    try {
+        if (fs.existsSync(configFile)) {
+            const configContent = fs.readFileSync(configFile, 'utf8');
+            const config = JSON.parse(configContent);
+            
+            if (!config.apiKey || config.apiKey === 'YOUR_YOUTUBE_API_KEY_HERE') {
+                throw new Error(
+                    `Invalid or placeholder API key in ${configFile}\n` +
+                    'Please edit the file and replace YOUR_YOUTUBE_API_KEY_HERE with your real API key'
+                );
+            }
+            
+            process.env.YOUTUBE_API_KEY = config.apiKey;
+            console.log('✅ API key loaded from tests/youtube-api.local.json');
+        } else {
+            // Check if environment variable is set
+            if (!process.env.YOUTUBE_API_KEY) {
+                throw new Error(
+                    `API key configuration not found!\n` +
+                    `Please create ${configFile} by copying the template:\n` +
+                    'cp tests/youtube-api.local.template.json tests/youtube-api.local.json\n' +
+                    'Then edit tests/youtube-api.local.json and add your real YouTube API key\n' +
+                    'Alternatively, set the YOUTUBE_API_KEY environment variable'
+                );
+            }
+        }
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            throw new Error(
+                `Invalid JSON in ${configFile}\n` +
+                'Please ensure the file contains valid JSON format'
+            );
+        }
+        throw error;
+    }
 }
 
 // Global YouTube Client Singleton for interface compliance tests

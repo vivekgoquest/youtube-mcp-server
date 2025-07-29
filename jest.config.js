@@ -22,8 +22,13 @@ export default {
     }],
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 15000, // Increased from 10000 for interface compliance tests
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$))'
+  ],
+  testTimeout: 20000, // Increased for comprehensive individual tool testing support
   verbose: true,
+  // DEBUG mode support - extended timeout and verbose output
+  ...(process.env.DEBUG === 'true' ? { testTimeout: 60000, verbose: true } : {}),
   // Conditional sequential execution for API tests - omit if not forcing sequential
   ...(process.env.FORCE_SEQUENTIAL === 'true' ? { maxWorkers: 1 } : {}),
   // Test categorization support

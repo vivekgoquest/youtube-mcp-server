@@ -10,7 +10,7 @@ A comprehensive Model Context Protocol (MCP) server that provides powerful YouTu
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/youtube-mcp-server.git
+git clone https://github.com/vivekgoquest/youtube-mcp-server.git
 cd youtube-mcp-server
 
 # Install dependencies
@@ -43,7 +43,7 @@ export YOUTUBE_API_KEY="YOUR_YOUTUBE_API_KEY_HERE"
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/youtube-mcp-server.git
+git clone https://github.com/vivekgoquest/youtube-mcp-server.git
 cd youtube-mcp-server
 
 # Install dependencies
@@ -53,17 +53,22 @@ npm install
 npm run build
 ```
 
-### Step 3: Configure Environment
+### Step 3: Configure API Key for Testing
 
-**For Development/Testing:**
-Create a `.env` file in the project root:
-
+**For Local Testing:**
 ```bash
-YOUTUBE_API_KEY=AIzaSyAqDuM3GcsKivan0IQ1I7_Q3Mx5VNZ9QmU
+# Copy the template and add your real API key
+cp tests/.env.test.template tests/.env.test
+# Edit tests/.env.test and replace YOUR_YOUTUBE_API_KEY_HERE with your real key
 ```
 
-**For Production:**
-Replace with your own YouTube API key from Google Cloud Console.
+**For Production/Development:**
+Set the environment variable directly:
+```bash
+export YOUTUBE_API_KEY="your_real_api_key_here"
+```
+
+> ⚠️ **Security Warning**: Never commit real API keys to version control. The `tests/.env.test` file is automatically gitignored. Always use placeholder values in documentation.
 
 ### Step 4: Verify Installation
 
@@ -155,27 +160,42 @@ Add to your Cline MCP settings file:
 
 ### 🔍 Search & Discovery Tools
 
-#### `search_videos`
-Search for YouTube videos with advanced filtering options.
+#### `unified_search`
+Search YouTube for videos, channels, or playlists with optional enrichment and advanced filtering.
 
 **Parameters:**
-- `query` (string, optional): Search query
-- `channelId` (string, optional): Restrict to specific channel
-- `maxResults` (integer, 1-50): Number of results (default: 25)
+- `query` (string, optional): Search query (required if channelId not provided)
+- `channelId` (string, optional): Restrict to specific channel (required if query not provided)
+- `type` (enum): `video`, `channel`, `playlist` (default: video)
+- `maxResults` (integer, 1-50): Number of results (default: 10)
 - `order` (enum): `date`, `rating`, `relevance`, `title`, `viewCount`
 - `publishedAfter` (string, optional): ISO 8601 date
 - `publishedBefore` (string, optional): ISO 8601 date
-- `videoDuration` (enum): `any`, `long`, `medium`, `short`
+- `videoDuration` (enum): `any`, `long`, `medium`, `short` (video search only)
 - `regionCode` (string, optional): ISO 3166-1 alpha-2 country code
+- `filters` (object, optional): Advanced filtering options
+  - `duration`: Video duration filter
+  - `uploadDate`: `any`, `hour`, `today`, `week`, `month`, `year`
+  - `sortBy`: Overrides order parameter
+- `enrichParts` (object, optional): Parts to fetch for enrichment
+  - `video`: Array of parts for videos
+  - `channel`: Array of parts for channels
+  - `playlist`: Array of parts for playlists
 
 **Example:**
 ```json
 {
   "query": "machine learning tutorial",
+  "type": "video",
   "maxResults": 10,
   "order": "viewCount",
-  "videoDuration": "medium",
-  "regionCode": "US"
+  "filters": {
+    "duration": "medium",
+    "uploadDate": "month"
+  },
+  "enrichParts": {
+    "video": ["snippet", "statistics"]
+  }
 }
 ```
 
@@ -206,14 +226,6 @@ Get trending/popular videos by region.
 - `regionCode` (string): Country code (default: US)
 - `videoCategoryId` (string, optional): Filter by category
 
-#### `advanced_search`
-Perform complex searches with multiple filters.
-
-**Parameters:**
-- `query` (string, required): Search query
-- `type` (enum): `video`, `channel`, `playlist`
-- `filters` (object): Duration, upload date, sort options
-- `maxResults` (integer, 1-50): Number of results
 
 ### 📊 Detail & Analytics Tools
 
@@ -551,7 +563,185 @@ Common error responses:
 }
 ```
 
-## � Debugging Workflow
+## 🔧 Diagnostics CLI
+
+The YouTube MCP Server includes a unified diagnostics CLI for comprehensive testing, monitoring, and troubleshooting. This powerful tool consolidates health checks, quota analysis, and tool discovery verification into a single, easy-to-use interface.
+
+### Quick Start
+
+**Run comprehensive diagnostics:**
+```bash
+# Check API health, analyze quota, and verify tool discovery
+npm run diagnostics health
+npm run diagnostics quota  
+npm run diagnostics discovery
+```
+
+**Direct CLI usage:**
+```bash
+# Build first if not already built
+npm run build
+
+# Run diagnostics directly
+node dist/src/cli/mcp-diagnostics.js --help
+node dist/src/cli/mcp-diagnostics.js health --json
+node dist/src/cli/mcp-diagnostics.js quota --verbose
+```
+
+### Available Commands
+
+#### `health` - API Health & Performance Check
+Validates YouTube API connectivity, measures performance, and checks current quota usage.
+
+```bash
+# Basic health check
+npm run test:api-health
+# or
+node dist/cli/mcp-diagnostics.js health
+
+# JSON output for automation
+node dist/cli/mcp-diagnostics.js health --json
+
+# Verbose output with detailed metrics
+node dist/cli/mcp-diagnostics.js health --verbose
+```
+
+**What it checks:**
+- ✅ API key validation and permissions
+- ✅ YouTube Data API connectivity  
+- ✅ Response time and performance metrics
+- ✅ Current quota usage and remaining capacity
+- ✅ Rate limiting status
+
+#### `quota` - Quota Analysis & Optimization
+Analyzes API quota usage patterns and provides budget recommendations for efficient testing.
+
+```bash
+# Analyze quota usage patterns
+npm run test:quota-check  
+# or
+node dist/cli/mcp-diagnostics.js quota
+
+# Get structured quota data
+node dist/cli/mcp-diagnostics.js quota --json
+```
+
+**Analysis includes:**
+- 📊 Tool-by-tool quota cost breakdown
+- 📊 High/Medium/Low cost tool categorization  
+- 📊 Budget recommendations for different usage patterns
+- 📊 Optimization suggestions for quota efficiency
+- 📊 Testing strategy recommendations
+
+#### `discovery` - Tool Discovery Verification
+Verifies that all tools are properly discovered and functional in both development and production modes.
+
+```bash
+# Verify tool discovery
+npm run verify:tools
+# or  
+node dist/cli/mcp-diagnostics.js discovery
+
+# Verbose output showing individual tool tests
+node dist/cli/mcp-diagnostics.js discovery --verbose
+
+# Generate detailed JSON report
+node dist/cli/mcp-diagnostics.js discovery --json
+```
+
+**Verification process:**
+- 🔍 Development mode tool discovery
+- 🔍 Production mode tool discovery  
+- 🔍 Tool interface compliance testing
+- 🔍 Parameter validation checks
+- 🔍 Error handling verification
+- 🔍 Generates `tool-discovery-report.json` with complete results
+
+### Integration with Development Workflow
+
+The diagnostics CLI integrates seamlessly with the development and testing workflow:
+
+**Daily Development:**
+```bash
+# Quick health check before starting work
+npm run test:api-health
+
+# Verify changes haven't broken tool discovery  
+npm run verify:tools
+
+# Check quota usage when testing extensively
+npm run test:quota-check
+```
+
+**CI/CD Integration:**
+```bash
+# Add to your CI pipeline
+npm run build
+npm run diagnostics health
+npm run diagnostics discovery
+```
+
+**Troubleshooting Workflow:**
+1. **Start with health check**: `npm run diagnostics health`
+2. **If API issues, check quota**: `npm run diagnostics quota`  
+3. **If tool issues, run discovery**: `npm run diagnostics discovery`
+4. **Use verbose/JSON flags for detailed analysis**
+
+### Command Reference
+
+| Command | Purpose | npm Script | Direct CLI |
+|---------|---------|------------|------------|
+| **health** | API connectivity & performance | `npm run test:api-health` | `node dist/cli/mcp-diagnostics.js health` |
+| **quota** | Quota analysis & budgeting | `npm run test:quota-check` | `node dist/cli/mcp-diagnostics.js quota` |
+| **discovery** | Tool discovery verification | `npm run verify:tools` | `node dist/cli/mcp-diagnostics.js discovery` |
+
+### Output Formats
+
+**Human-readable (default):**
+- Color-coded status indicators
+- Formatted tables and progress indicators
+- Clear recommendations and next steps
+
+**JSON format (`--json` flag):**
+- Structured data for automation
+- Complete metrics and analysis results
+- Machine-parseable for CI/CD integration
+
+**Verbose mode (`--verbose` flag):**
+- Detailed diagnostic information
+- Step-by-step process visibility
+- Extended error messages and debugging info
+
+### Common Use Cases
+
+**Before Development Session:**
+```bash
+npm run diagnostics health  # Ensure API is working
+```
+
+**After Making Changes:**  
+```bash
+npm run diagnostics discovery  # Verify tools still work
+```
+
+**When Tests Are Slow:**
+```bash
+npm run diagnostics quota  # Check if quota is the issue
+```
+
+**For CI/CD Health Checks:**
+```bash
+node dist/cli/mcp-diagnostics.js health --json  # Automated health monitoring
+```
+
+**For Debugging Issues:**
+```bash
+node dist/cli/mcp-diagnostics.js discovery --verbose  # Detailed tool analysis
+```
+
+This unified CLI approach replaces the previous individual verification scripts, providing a more consistent and powerful diagnostic experience.
+
+## 🔧 Debugging Workflow
 
 This server includes a comprehensive automated debugging system that helps identify and resolve issues quickly. The debugging system monitors tool execution, analyzes log files, and provides actionable recommendations for common problems.
 
@@ -724,13 +914,17 @@ The debugging system creates:
 - `debug-session-*.json` - Complete debug reports
 - Console output with color-coded recommendations
 
-### Complete Setup Guide
+## Documentation
 
-For detailed setup instructions, advanced configuration, and troubleshooting:
-- [Comprehensive Guide](docs/COMPREHENSIVE_GUIDE.md) - Complete setup, testing, and integration guide
-- [Deployment Guide](docs/DEPLOYMENT.md) - NPM publishing and production deployment
-- [Tool Test Results](docs/TOOL_TEST_RESULTS.md) - Detailed testing results and validation
-- [Debug System README](debug/README.md) - Complete debugging documentation
+For detailed documentation, please refer to the following guides:
+
+-   **[Quick Start Guide](docs/overview/quick-start.md)**: Get up and running in minutes.
+-   **[Installation Guide](docs/deployment/install-on-other-computers.md)**: Detailed installation instructions.
+-   **[Configuration Guide](docs/configuration/client-setup.md)**: How to configure your MCP client.
+-   **[Deployment Guide](docs/deployment/npm-publish.md)**: Publishing new versions to NPM.
+-   **[Testing Guide](docs/testing/inspector-manual-guide.md)**: How to test the server.
+-   **[Tool Catalogue](docs/reference/tools-catalogue.md)**: A comprehensive list of all available tools.
+-   **[System Architecture](docs/architecture/system-overview.md)**: An overview of the server's architecture.
 
 ## �🔧 Development
 
@@ -760,6 +954,152 @@ npm run test:coverage
 npm test -- --testPathPattern=search
 ```
 
+## 🧪 Hierarchical Testing Strategy
+
+The YouTube MCP Server implements a comprehensive hierarchical testing strategy that follows an "interface first, drill down when needed" approach. This strategy optimizes for development workflow efficiency while maintaining thorough validation capabilities.
+
+### Quick Interface Validation (Primary)
+
+**Start here for 80% of use cases:**
+```bash
+# Fast development feedback - catches most issues with minimal quota
+npm run test:quick
+
+# Comprehensive interface compliance testing
+npm run test:interface
+
+# Minimal mode for development (lowest quota usage)
+npm run test:interface:minimal
+
+# Budget-conscious testing for CI/CD
+npm run test:interface:budget
+```
+
+**When to use interface tests:**
+- ✅ Daily development workflow
+- ✅ Pull request validation
+- ✅ CI/CD pipeline testing
+- ✅ API key validation
+- ✅ Tool structure verification
+
+### Individual Tool Testing (Deep Debugging)
+
+**Use when interface tests pass but you need deeper validation:**
+```bash
+# Test a specific tool (replace with actual tool name)
+npm run test:tool -- --testNamePattern="searchVideos"
+
+# Test all individual tools
+npm run test:tools
+
+# Watch mode for development
+npm run test:tools:watch
+
+# Test only expensive tools (search, analyze, workflow)
+npm run test:tools:expensive
+
+# Test only cheap tools (get, extract, generate)
+npm run test:tools:cheap
+
+# Debug mode with extended timeout and verbose output
+npm run test:debug
+```
+
+**When to use individual tool tests:**
+- 🔍 Interface tests pass but specific tool behavior is suspect
+- 🔍 Debugging complex tool interactions
+- 🔍 Validating edge cases and error handling
+- 🔍 Performance testing individual tools
+- 🔍 Developing new tool features
+
+### Complete Hierarchical Workflow
+
+**The recommended testing flow:**
+```bash
+# Run interface tests first, get guidance for next steps
+npm run test:hierarchical
+```
+
+This command:
+1. Runs interface compliance tests first
+2. If successful, provides guidance on individual tool testing
+3. Optimizes quota usage by starting with broad validation
+4. Gives clear next steps based on results
+
+### Testing Mode Examples
+
+| Scenario | Command | Purpose | Quota Usage |
+|----------|---------|---------|-------------|
+| **Development** | `npm run test:quick` | Fast feedback loop | Very Low |
+| **PR Review** | `npm run test:interface` | Comprehensive validation | Low |
+| **CI/CD** | `npm run test:interface:budget` | Automated testing | Medium |
+| **Debugging** | `npm run test:tool -- tool-name` | Specific issue investigation | Medium |
+| **Full Validation** | `npm run test:tools` | Complete testing | High |
+| **Performance** | `npm run test:debug` | Extended diagnostics | Variable |
+
+### Quota-Aware Testing
+
+**Check quota before testing:**
+```bash
+# Estimate quota usage for different testing approaches
+npm run test:quota-check
+
+# Verify API health and get testing recommendations
+npm run test:api-health
+```
+
+**Budget recommendations:**
+- **Development (1,000 units/day)**: Use `test:interface:minimal` primarily
+- **CI/CD (10,000 units/day)**: Use `test:interface` for automation
+- **Deep debugging**: Use `test:tool` for specific issues only
+- **Full validation**: Use `test:tools` when quota permits
+
+### Integration with Existing Tools
+
+The hierarchical testing strategy integrates seamlessly with existing testing infrastructure:
+
+```bash
+# Existing comprehensive testing
+npm run test:all  # Now includes hierarchical workflow
+
+# MCP-specific testing
+npm run test:inspector
+
+# End-to-end testing
+npm run test:e2e
+
+# Integration testing
+npm run test:integration
+```
+
+### Testing Strategy Benefits
+
+1. **Quota Efficiency**: Interface tests catch 80% of issues with 30% of quota usage
+2. **Fast Feedback**: Quick validation during development
+3. **Targeted Debugging**: Individual tests only when needed
+4. **Scalable**: Works from development to CI/CD to production validation
+5. **Comprehensive**: Complete coverage when required
+
+### Best Practices
+
+**For Development:**
+- Start with `npm run test:quick` for immediate feedback
+- Use `npm run test:interface:minimal` for regular validation
+- Only run individual tool tests when debugging specific issues
+
+**For CI/CD:**
+- Use `npm run test:hierarchical` as the primary test command
+- Set appropriate quota limits with environment variables
+- Include quota checking in pipeline health monitoring
+
+**For Debugging:**
+- Run interface tests first to isolate scope
+- Use specific tool tests (`test:tool`) for targeted debugging
+- Enable debug mode (`test:debug`) for complex issues
+- Monitor quota usage with `test:quota-check`
+
+This hierarchical approach ensures efficient resource usage while maintaining comprehensive validation capabilities throughout the development lifecycle.
+
 ### Project Structure
 
 ```
@@ -770,11 +1110,10 @@ youtube-mcp-server/
 │   ├── youtube-client.ts     # YouTube API client
 │   ├── types.ts              # TypeScript type definitions
 │   ├── tools/                # Tool implementations (plug-and-play architecture)
-│   │   ├── search-videos.tool.ts # Video search
+│   │   ├── unified-search.tool.ts # Unified search for videos, channels, playlists
 │   │   ├── search-channels.tool.ts # Channel search
 │   │   ├── search-playlists.tool.ts # Playlist search
 │   │   ├── get-trending-videos.tool.ts # Trending videos
-│   │   ├── advanced-search.tool.ts # Advanced search
 │   │   ├── get-video-details.tool.ts # Video details
 │   │   ├── get-channel-details.tool.ts # Channel details
 │   │   ├── get-playlist-details.tool.ts # Playlist details
@@ -880,7 +1219,7 @@ A: Yes! Follow the development guide to add new tools.
 - [YouTube Data API Documentation](https://developers.google.com/youtube/v3)
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [Google Cloud Console](https://console.cloud.google.com/)
-- [Issues & Bug Reports](https://github.com/yourusername/youtube-mcp-server/issues)
+- [Issues & Bug Reports](https://github.com/vivekgoquest/youtube-mcp-server/issues)
 
 ---
 

@@ -1,0 +1,39 @@
+# Development and documentation directories
+docs/
+scripts/
+.github/
+
+# Test-related files and directories
+tests/
+**/*.test.*
+**/*.spec.*
+jest.config.js
+tsconfig.json
+.env.example
+.env
+youtube-api.local.json
+tests/youtube-api.local.json
+tests/youtube-api.local.template.json
+
+# Development artifacts
+*.log
+*.tgz
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Source files (only dist/ should be published)
+src/
+debug/
+
+# CI/CD and configuration files
+.gitignore
+.npmignore
+CHANGELOG.md
+.git/
+.github/
+
+# Development configuration
+tsconfig.prod.json

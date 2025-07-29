@@ -5,12 +5,9 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh"
 
 # Configuration
 TEST_LOG="test-results.log"
@@ -21,25 +18,35 @@ TEST_TIMEOUT=30
 # Initialize log file
 echo "MCP Inspector Test Run - $(date)" > "$TEST_LOG"
 
-# Utility functions
-log() {
+# Utility functions - enhanced to work with common.sh logging
+enhanced_log() {
     echo -e "$1" | tee -a "$TEST_LOG"
 }
 
+# Override common.sh logging functions to also write to test log
 error() {
-    log "${RED}ERROR: $1${NC}"
+    enhanced_log "${RED}ERROR: $1${NC}"
+    if [ -n "$2" ]; then
+        add_status "$2" "failed"
+    fi
 }
 
 success() {
-    log "${GREEN}SUCCESS: $1${NC}"
+    enhanced_log "${GREEN}SUCCESS: $1${NC}"
+    if [ -n "$2" ]; then
+        add_status "$2" "passed"
+    fi
 }
 
 warning() {
-    log "${YELLOW}WARNING: $1${NC}"
+    enhanced_log "${YELLOW}WARNING: $1${NC}"
+    if [ -n "$2" ]; then
+        add_status "$2" "warning"
+    fi
 }
 
 info() {
-    log "${BLUE}INFO: $1${NC}"
+    enhanced_log "${BLUE}INFO: $1${NC}"
 }
 
 cleanup() {

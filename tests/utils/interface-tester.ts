@@ -8,6 +8,7 @@ import {
 } from '../setup.js';
 import { ToolRunner, ToolMetadata } from '../../src/interfaces/tool.js';
 import { ToolResponse } from '../../src/types.js';
+import { TOOL_QUOTA_ESTIMATES } from '../fixtures/test-inputs.js';
 
 export interface InterfaceTestResult {
   success: boolean;
@@ -341,4 +342,78 @@ export async function runBatchInterfaceTests(
   }
   
   return results;
+}
+
+/**
+ * Validates that test fixture quota costs match actual tool metadata.
+ * This helps prevent drift between test fixtures and implementation.
+ * Enable via VALIDATE_QUOTA_FIXTURES=true environment variable.
+ */
+export function validateQuotaFixtures(
+  tools: Array<{ instance: ToolRunner; metadata: ToolMetadata }>
+): { isValid: boolean; mismatches: Array<{ tool: string; expected: number; actual: number }> } {
+  const mismatches: Array<{ tool: string; expected: number; actual: number }> = [];
+  
+  // Only run validation if environment variable is set
+  if (process.env.VALIDATE_QUOTA_FIXTURES !== 'true') {
+    return { isValid: true, mismatches: [] };
+  }
+  
+  for (const { metadata } of tools) {
+    const fixtureEstimate = TOOL_QUOTA_ESTIMATES[metadata.name];
+    const actualQuotaCost = metadata.quotaCost || 0;
+    
+    // Skip tools not in fixtures (might be new tools)
+    if (fixtureEstimate === undefined) {
+      console.warn(`Tool '${metadata.name}' not found in TOOL_QUOTA_ESTIMATES fixtures`);
+      continue;
+    }
+    
+    // Compare fixture vs actual
+    if (fixtureEstimate !== actualQuotaCost) {
+      mismatches.push({
+        tool: metadata.name,
+        expected: fixtureEstimate,
+        actual: actualQuotaCost
+      });
+    }
+  }
+  
+  // Log mismatches if any found
+  if (mismatches.length > 0) {
+    console.error('❌ Quota fixture mismatches detected:');
+    console.error('The following tools have incorrect quota estimates in test fixtures:');
+    for (const mismatch of mismatches) {
+      console.error(`  - ${mismatch.tool}: fixture=${mismatch.expected}, actual=${mismatch.actual}`);
+    }
+    console.error('');
+    console.error('To fix, update TOOL_QUOTA_ESTIMATES in tests/fixtures/test-inputs.ts:');
+    for (const mismatch of mismatches) {
+      console.error(`  '${mismatch.tool}': ${mismatch.actual},`);
+    }
+  } else {
+    console.log('✅ All quota fixtures match tool metadata');
+  }
+  
+  return {
+    isValid: mismatches.length === 0,
+    mismatches
+  };
+}
+
+/**
+ * Runs quota fixture validation and throws if mismatches are found.
+ * Use this in test setup to ensure fixtures stay in sync.
+ */
+export async function assertQuotaFixturesValid(
+  tools: Array<{ instance: ToolRunner; metadata: ToolMetadata }>
+): Promise<void> {
+  const validation = validateQuotaFixtures(tools);
+  
+  if (!validation.isValid) {
+    throw new Error(
+      `Quota fixture validation failed: ${validation.mismatches.length} mismatches found. ` +
+      `Run with VALIDATE_QUOTA_FIXTURES=true to see details.`
+    );
+  }
 }

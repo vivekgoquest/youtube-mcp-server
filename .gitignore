@@ -3,153 +3,77 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# Build outputs
+# Build output
 dist/
 build/
+out/
 *.tsbuildinfo
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# TypeScript compiled artifacts
+*.js.map
+*.d.ts.map
 
-# IDE
+# Test compiled artifacts (keep source .ts files only)
+tests/**/*.js
+tests/**/*.d.ts
+!tests/**/*.test.js
+!tests/**/*.spec.js
+
+# Package artifacts and generated reports
+*.tgz
+tool-discovery-report.json
+
+# Testing
+coverage/
+.nyc_output/
+test-artifacts/
+jest-timing.json
+test-results.log
+*.timing.log
+concurrent_test_*.log
+
+# Environment and config files
+.env
+.env.*
+.env.local
+.env.test
+.env.production
+
+# API Key Configuration
+youtube-api.local.json
+tests/youtube-api.local.json
+.claude/settings.local.json
+
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.project
+.settings/
+*.sublime-workspace
 
-# OS generated files
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Logs
-logs
+# Logs and debug files
 *.log
+logs/
+debug/
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# ESLint cache
-.eslintcache
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Temporary folders
-tmp/
-temp/
-
-# Test results
-test-results/
-coverage/
-
-# MCP specific
-mcp-config.json
-
-# NPM publishing
-.npmrc
-npm-debug.log*
-.npm
-
-# Additional ignores for production
-*.orig
-.vscode/settings.json
-.idea/
-
-# Environment specific
-.env*
-!.env.example
-
-# Debug logs and temporary files
-debug.log
-*.debug.log
-.write-test-*
-write-test-*
-debug-test-*
-temp-log-*
-synthetic-log-*
-
-# Debug session outputs
-debug-session-*
-debug-monitor-*
-comprehensive-debug-*
-
-# Temporary log analysis files
-*.log.analysis
-*.temp.log
-*.synthetic.log
-
-# Test artifacts and temporary files
-test-output-*
-test-artifacts/
-synthetic-data/
-temp-test-files/
-
-# Development temporary files
+# Temporary files
 *.tmp
 *.temp
-.temp-*
-.test-*
-.debug-*
+.cache/
+.tmp/
+temp/
 
-# Process and system temporary files
-*.lock
-*.pid.lock
-.process-*
+# Misc
+*.bak
+*.orig
+.eslintcache

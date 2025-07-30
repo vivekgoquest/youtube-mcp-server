@@ -117,7 +117,6 @@ export class ResponseValidator {
           : `MCP protocol validation failed: ${errors.length} errors`,
       };
     } catch (error) {
-      // @remove-legacy legacy error path; consolidate via utils/error-handler
       return {
         valid: false,
         errors: [

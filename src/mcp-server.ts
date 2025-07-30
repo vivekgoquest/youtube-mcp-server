@@ -410,7 +410,7 @@ export class YouTubeMCPServer {
   }
 
   private formatChannelVideosAnalysis(data: any): string {
-    // Handle both legacy array format and new batched format
+
     if (Array.isArray(data)) {
       // Legacy format - convert to batched format
       const batchedData = {

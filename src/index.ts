@@ -103,8 +103,7 @@ class YouTubeMCPServerHandler {
           };
         }
       } catch (error) {
-        // @remove-legacy legacy error path; consolidate via utils/error-handler
-        const errorMessage =
+                const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
         console.error(`Tool execution error for ${name}:`, error);
 

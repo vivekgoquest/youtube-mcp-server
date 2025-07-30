@@ -508,7 +508,6 @@ async function quotaCommand(options: any): Promise<void> {
       console.log(JSON.stringify(result, null, 2));
     }
   } catch (error: any) {
-    // @remove-legacy legacy error path; consolidate via utils/error-handler
     DiagnosticsLogger.error(`Quota check failed: ${error.message}`);
 
     if (options.json) {

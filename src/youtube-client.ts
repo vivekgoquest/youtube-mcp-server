@@ -196,7 +196,7 @@ export class YouTubeClient {
       });
       return true;
     } catch (error) {
-      // @remove-legacy legacy error path; consolidate via utils/error-handler
+
       return false;
     }
   }

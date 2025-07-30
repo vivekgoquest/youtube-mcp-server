@@ -1,0 +1,2 @@
+src/types.ts:545 - CommentReply
+src/tools/find-content-gaps.tool.ts:23 - metadata

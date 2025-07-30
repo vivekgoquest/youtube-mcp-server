@@ -1,6 +1,7 @@
-import { ToolMetadata, ToolRunner } from '../interfaces/tool.js';
-import { YouTubeClient } from '../youtube-client.js';
-import { ToolResponse } from '../types.js';
+import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import { YouTubeClient } from "../youtube-client.js";
+import { ToolResponse } from "../types.js";
+import { ErrorHandler } from "../utils/error-handler.js";
 
 interface KeywordOpportunityOptions {
   keywords: string[];
@@ -19,47 +20,53 @@ interface KeywordAnalysis {
     views: number;
     channelName: string;
   }[];
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: "easy" | "medium" | "hard";
   opportunity: number;
 }
 
 export const metadata: ToolMetadata = {
-  name: 'analyze_keyword_opportunities',
-  description: 'OPPORTUNITY SCANNER that finds untapped keywords with high potential. Analyzes competition difficulty, search volume, and ranking potential for each keyword. Returns opportunity score (1-100) showing which keywords are easiest to rank for. Use this to find "golden keywords" - high search, low competition. INCLUDES: related keyword suggestions, competition analysis per keyword, and specific content recommendations. Essential for finding keywords where you can actually rank on page 1.',
+  name: "analyze_keyword_opportunities",
+  description:
+    'OPPORTUNITY SCANNER that finds untapped keywords with high potential. Analyzes competition difficulty, search volume, and ranking potential for each keyword. Returns opportunity score (1-100) showing which keywords are easiest to rank for. Use this to find "golden keywords" - high search, low competition. INCLUDES: related keyword suggestions, competition analysis per keyword, and specific content recommendations. Essential for finding keywords where you can actually rank on page 1.',
+  quotaCost: 100,
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       keywords: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'string'
+          type: "string",
         },
-        description: 'Array of keywords to analyze'
+        description: "Array of keywords to analyze",
       },
       maxResults: {
-        type: 'integer',
-        description: 'Maximum number of keyword analyses to return (default: 25)',
+        type: "integer",
+        description:
+          "Maximum number of keyword analyses to return (default: 25)",
         minimum: 1,
         maximum: 50,
-        default: 25
+        default: 25,
       },
       includeRelated: {
-        type: 'boolean',
-        description: 'Include related keyword suggestions (default: true)',
-        default: true
-      }
+        type: "boolean",
+        description: "Include related keyword suggestions (default: true)",
+        default: true,
+      },
     },
-    required: ['keywords']
+    required: ["keywords"],
   },
-  quotaCost: 100
 };
 
-export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<KeywordOpportunityOptions, KeywordAnalysis[]> {
+export default class AnalyzeKeywordOpportunitiesTool
+  implements ToolRunner<KeywordOpportunityOptions, KeywordAnalysis[]>
+{
   constructor(private client: YouTubeClient) {}
 
-  async run(options: KeywordOpportunityOptions): Promise<ToolResponse<KeywordAnalysis[]>> {
+  async run(
+    options: KeywordOpportunityOptions,
+  ): Promise<ToolResponse<KeywordAnalysis[]>> {
     const startTime = Date.now();
-    
+
     try {
       const maxResults = options.maxResults || 25;
       const keywordAnalyses: KeywordAnalysis[] = [];
@@ -67,34 +74,40 @@ export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<Keywo
       for (const keyword of options.keywords) {
         // Search for videos with this keyword
         const searchResponse = await this.client.search({
-          part: 'snippet',
+          part: "snippet",
           q: keyword,
-          type: 'video',
+          type: "video",
           maxResults: 50,
-          order: 'relevance'
+          order: "relevance",
         });
 
         // Get top videos for this keyword
-        const topVideos = searchResponse.items.slice(0, 10).map(item => ({
-          videoId: item.id.videoId || '',
+        const topVideos = searchResponse.items.slice(0, 10).map((item) => ({
+          videoId: item.id.videoId || "",
           title: item.snippet.title,
           views: 0, // Would need additional API call to get view count
-          channelName: item.snippet.channelTitle
+          channelName: item.snippet.channelTitle,
         }));
 
         // Calculate competition and difficulty
-        const competition = this.calculateKeywordCompetition(searchResponse.items);
-        const difficulty = this.calculateKeywordDifficulty(competition, searchResponse.pageInfo.totalResults);
-        
+        const competition = this.calculateKeywordCompetition(
+          searchResponse.items,
+        );
+        const difficulty = this.calculateKeywordDifficulty(
+          competition,
+          searchResponse.pageInfo.totalResults,
+        );
+
         // Generate related keywords if requested
-        const relatedKeywords = options.includeRelated ? 
-          await this.generateRelatedKeywords(keyword) : [];
+        const relatedKeywords = options.includeRelated
+          ? await this.generateRelatedKeywords(keyword)
+          : [];
 
         // Calculate opportunity score
         const opportunity = this.calculateKeywordOpportunity(
           searchResponse.pageInfo.totalResults,
           competition,
-          difficulty
+          difficulty,
         );
 
         const analysis: KeywordAnalysis = {
@@ -104,7 +117,7 @@ export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<Keywo
           relatedKeywords,
           topVideos,
           difficulty,
-          opportunity
+          opportunity,
         };
 
         keywordAnalyses.push(analysis);
@@ -119,19 +132,15 @@ export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<Keywo
         metadata: {
           quotaUsed: options.keywords.length * 100,
           requestTime: Date.now() - startTime,
-          source: 'youtube-keyword-analysis'
-        }
+          source: "youtube-keyword-analysis",
+        },
       };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        metadata: {
-          quotaUsed: 0,
-          requestTime: Date.now() - startTime,
-          source: 'youtube-keyword-analysis'
-        }
-      };
+    } catch (error) {
+      return ErrorHandler.handleToolError<KeywordAnalysis[]>(error, {
+        quotaUsed: 0,
+        startTime,
+        source: "youtube-keyword-analysis",
+      });
     }
   }
 
@@ -145,9 +154,9 @@ export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<Keywo
       `${keyword} 2024`,
       `best ${keyword}`,
       `how to ${keyword}`,
-      `${keyword} explained`
+      `${keyword} explained`,
     ];
-    
+
     return variations.slice(0, 5);
   }
 
@@ -156,17 +165,27 @@ export default class AnalyzeKeywordOpportunitiesTool implements ToolRunner<Keywo
     return Math.min(100, searchResults.length * 2);
   }
 
-  private calculateKeywordDifficulty(competition: number, totalResults: number): 'easy' | 'medium' | 'hard' {
-    if (competition < 30 && totalResults < 10000) return 'easy';
-    if (competition < 60 && totalResults < 50000) return 'medium';
-    return 'hard';
+  private calculateKeywordDifficulty(
+    competition: number,
+    totalResults: number,
+  ): "easy" | "medium" | "hard" {
+    if (competition < 30 && totalResults < 10000) return "easy";
+    if (competition < 60 && totalResults < 50000) return "medium";
+    return "hard";
   }
 
-  private calculateKeywordOpportunity(searchVolume: number, competition: number, difficulty: 'easy' | 'medium' | 'hard'): number {
+  private calculateKeywordOpportunity(
+    searchVolume: number,
+    competition: number,
+    difficulty: "easy" | "medium" | "hard",
+  ): number {
     const difficultyScore = { easy: 100, medium: 60, hard: 30 };
     const volumeScore = Math.min(100, Math.log10(searchVolume) * 20);
     const competitionPenalty = Math.min(50, competition / 2);
-    
-    return Math.max(0, volumeScore + difficultyScore[difficulty] - competitionPenalty);
+
+    return Math.max(
+      0,
+      volumeScore + difficultyScore[difficulty] - competitionPenalty,
+    );
   }
 }

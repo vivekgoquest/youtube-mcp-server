@@ -93,6 +93,7 @@ gh secret list -R vivekgoquest/youtube-mcp-server
 ```
 
 You should see:
+
 - `NPM_TOKEN`
 - `YOUTUBE_API_KEY` (if configured)
 
@@ -109,7 +110,7 @@ Once secrets are configured, you can publish new versions:
 ```bash
 # Increment version and create git tag
 npm version patch   # 1.0.0 → 1.0.1
-npm version minor   # 1.0.0 → 1.1.0  
+npm version minor   # 1.0.0 → 1.1.0
 npm version major   # 1.0.0 → 2.0.0
 
 # Push tags to trigger publishing
@@ -117,6 +118,7 @@ git push --follow-tags
 ```
 
 The GitHub Action will automatically:
+
 1. Run all tests
 2. Build the package
 3. Publish to NPM if tests pass
@@ -126,11 +128,13 @@ The GitHub Action will automatically:
 With these secrets configured, GitHub Actions will:
 
 ✅ **On every push**:
+
 - Run linting and type checking
 - Execute unit tests
 - Run integration tests (if `YOUTUBE_API_KEY` is set)
 
 ✅ **On version tags** (e.g., `v1.0.1`):
+
 - Run all tests
 - Build production package
 - Publish to NPM registry
@@ -141,17 +145,20 @@ With these secrets configured, GitHub Actions will:
 ### Common Issues
 
 #### "Authentication failed" Error
+
 ```bash
 # Re-authenticate with GitHub CLI
 gh auth login --web
 ```
 
 #### "Permission denied" for NPM Token
+
 - Ensure the NPM token type is **"Automation"** (not "Publish")
 - Verify you have publish permissions for the package
 - Check token hasn't expired
 
 #### Tests Fail in CI but Pass Locally
+
 - Verify `YOUTUBE_API_KEY` secret is set correctly
 - Check API key quotas aren't exceeded
 - Review GitHub Actions logs for specific error messages
@@ -169,6 +176,7 @@ echo "new_secret_value" | gh secret set SECRET_NAME -R vivekgoquest/youtube-mcp-
 ### Repository Settings
 
 Verify in GitHub web interface:
+
 1. Go to **Settings** → **Secrets and variables** → **Actions**
 2. Confirm both secrets are listed
 3. Check **Actions** → **General** for workflow permissions

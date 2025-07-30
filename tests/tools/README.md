@@ -7,7 +7,7 @@ This directory contains tests for individual YouTube MCP server tools, providing
 Individual tool tests complement the interface compliance tests in `tests/tool-interface-compliance.test.ts` by providing:
 
 - **Deep debugging** for specific tool failures
-- **Isolated testing** of tool-specific functionality  
+- **Isolated testing** of tool-specific functionality
 - **Comprehensive validation** beyond interface compliance
 - **Development workflow** for new tool features
 
@@ -70,19 +70,19 @@ When adding new individual tool tests:
 
 ## Testing Modes
 
-| Mode | Command | Purpose | Quota Usage |
-|------|---------|---------|-------------|
-| Interface | `test:interface` | Structure validation | Low |
-| Minimal | `test:interface:minimal` | Quick feedback | Very Low |
-| Individual | `test:tool` | Deep debugging | Medium |
-| Comprehensive | `test:tools` | Full validation | High |
-| Debug | `test:debug` | Extended diagnostics | Variable |
+| Mode          | Command                  | Purpose              | Quota Usage |
+| ------------- | ------------------------ | -------------------- | ----------- |
+| Interface     | `test:interface`         | Structure validation | Low         |
+| Minimal       | `test:interface:minimal` | Quick feedback       | Very Low    |
+| Individual    | `test:tool`              | Deep debugging       | Medium      |
+| Comprehensive | `test:tools`             | Full validation      | High        |
+| Debug         | `test:debug`             | Extended diagnostics | Variable    |
 
 ## Best Practices
 
 - **Start with interface tests** before creating individual tests
 - **Use minimal test cases** to preserve quota
-- **Test edge cases** that interface tests might miss  
+- **Test edge cases** that interface tests might miss
 - **Include error scenarios** and API failure handling
 - **Document any quota-intensive tests** clearly
 

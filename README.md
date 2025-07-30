@@ -56,6 +56,7 @@ npm run build
 ### Step 3: Configure API Key for Testing
 
 **For Local Testing:**
+
 ```bash
 # Copy the template and add your real API key
 cp tests/.env.test.template tests/.env.test
@@ -64,6 +65,7 @@ cp tests/.env.test.template tests/.env.test
 
 **For Production/Development:**
 Set the environment variable directly:
+
 ```bash
 export YOUTUBE_API_KEY="your_real_api_key_here"
 ```
@@ -103,6 +105,7 @@ Add to your Cline MCP settings file:
 ### For Other MCP Clients
 
 **Via npx (easiest):**
+
 ```json
 {
   "mcpServers": {
@@ -118,6 +121,7 @@ Add to your Cline MCP settings file:
 ```
 
 **Via direct path:**
+
 ```json
 {
   "mcpServers": {
@@ -134,10 +138,10 @@ Add to your Cline MCP settings file:
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `YOUTUBE_API_KEY` | Yes | Your YouTube Data API v3 key |
-| `DEBUG` | No | Set to `youtube-mcp` for debug logging |
+| Variable          | Required | Description                            |
+| ----------------- | -------- | -------------------------------------- |
+| `YOUTUBE_API_KEY` | Yes      | Your YouTube Data API v3 key           |
+| `DEBUG`           | No       | Set to `youtube-mcp` for debug logging |
 
 ### Troubleshooting Configuration
 
@@ -161,9 +165,11 @@ Add to your Cline MCP settings file:
 ### 🔍 Search & Discovery Tools
 
 #### `unified_search`
+
 Search YouTube for videos, channels, or playlists with optional enrichment and advanced filtering.
 
 **Parameters:**
+
 - `query` (string, optional): Search query (required if channelId not provided)
 - `channelId` (string, optional): Restrict to specific channel (required if query not provided)
 - `type` (enum): `video`, `channel`, `playlist` (default: video)
@@ -183,6 +189,7 @@ Search YouTube for videos, channels, or playlists with optional enrichment and a
   - `playlist`: Array of parts for playlists
 
 **Example:**
+
 ```json
 {
   "query": "machine learning tutorial",
@@ -200,18 +207,22 @@ Search YouTube for videos, channels, or playlists with optional enrichment and a
 ```
 
 #### `search_channels`
+
 Find YouTube channels by search query.
 
 **Parameters:**
+
 - `query` (string, required): Search query
 - `maxResults` (integer, 1-50): Number of results
 - `order` (enum): Sort order options
 - `regionCode` (string, optional): Country code
 
 #### `search_playlists`
+
 Search for YouTube playlists.
 
 **Parameters:**
+
 - `query` (string, optional): Search query
 - `channelId` (string, optional): Restrict to specific channel
 - `maxResults` (integer, 1-50): Number of results
@@ -219,47 +230,56 @@ Search for YouTube playlists.
 - `regionCode` (string, optional): Country code
 
 #### `get_trending_videos`
+
 Get trending/popular videos by region.
 
 **Parameters:**
+
 - `maxResults` (integer, 1-50): Number of results
 - `regionCode` (string): Country code (default: US)
 - `videoCategoryId` (string, optional): Filter by category
 
-
 ### 📊 Detail & Analytics Tools
 
 #### `get_video_details`
+
 Get comprehensive information about a specific video.
 
 **Parameters:**
+
 - `videoId` (string, required): YouTube video ID
 - `includeParts` (array): Data parts - `snippet`, `statistics`, `contentDetails`
 
 **Returns:** Views, likes, comments, duration, description, tags, and more.
 
 #### `get_channel_details`
+
 Get detailed channel information and statistics.
 
 **Parameters:**
+
 - `channelId` (string, required): YouTube channel ID
 - `includeParts` (array): Data parts to include
 
 **Returns:** Subscriber count, total views, video count, channel metadata.
 
 #### `get_playlist_details`
+
 Get playlist information and metadata.
 
 **Parameters:**
+
 - `playlistId` (string, required): YouTube playlist ID
 - `includeParts` (array): Data parts to include
 
 ### 📈 Advanced Analytics Tools
 
 #### `analyze_viral_videos`
+
 Analyze viral videos to identify success patterns and characteristics.
 
 **Parameters:**
+
 - `categoryId` (string, optional): Filter by video category
 - `regionCode` (string): Region for analysis (default: US)
 - `minViews` (integer): Minimum views to consider viral (default: 1,000,000)
@@ -269,9 +289,11 @@ Analyze viral videos to identify success patterns and characteristics.
 **Returns:** Viral score, growth rate, engagement metrics, success characteristics.
 
 #### `analyze_competitor`
+
 Perform deep competitor analysis including content strategy and performance.
 
 **Parameters:**
+
 - `channelId` (string, required): Competitor channel ID
 - `maxVideos` (integer, 1-500): Videos to analyze (default: 100)
 - `analyzeComments` (boolean): Include comment analysis
@@ -280,9 +302,11 @@ Perform deep competitor analysis including content strategy and performance.
 **Returns:** Upload patterns, content themes, engagement metrics, top performing videos.
 
 #### `analyze_channel_videos`
+
 Comprehensive analysis of all videos from a channel.
 
 **Parameters:**
+
 - `channelId` (string, required): Channel to analyze
 - `maxVideos` (integer, 1-1000): Videos to analyze (default: 200)
 - `videoDurationFilter` (enum): `any`, `short`, `medium`, `long`
@@ -292,9 +316,11 @@ Comprehensive analysis of all videos from a channel.
 **Returns:** Performance metrics, view patterns, engagement analysis, top performers.
 
 #### `discover_channel_network`
+
 Map channel relationships through featured channels and discover networks.
 
 **Parameters:**
+
 - `seedChannelIds` (array, required): Starting channels for network discovery
 - `maxDepth` (integer, 1-5): Recursion depth (default: 3)
 - `maxChannelsPerLevel` (integer, 1-50): Channels per level (default: 10)
@@ -305,9 +331,11 @@ Map channel relationships through featured channels and discover networks.
 ### 💬 Engagement Analysis Tools
 
 #### `extract_video_comments`
+
 Extract and analyze comments from videos with optional sentiment analysis.
 
 **Parameters:**
+
 - `videoIds` (array, required): Video IDs to analyze
 - `maxCommentsPerVideo` (integer, 1-500): Comments per video (default: 100)
 - `includeSentiment` (boolean): Include sentiment analysis
@@ -315,9 +343,11 @@ Extract and analyze comments from videos with optional sentiment analysis.
 **Returns:** Comments, sentiment analysis, engagement patterns.
 
 #### `get_commenter_frequency`
+
 Identify frequent commenters and super fans for audience analysis.
 
 **Parameters:**
+
 - `channelId` (string, required): Channel to analyze
 - `daysBack` (integer, 1-3650): Days to look back (default: 365)
 
@@ -326,9 +356,11 @@ Identify frequent commenters and super fans for audience analysis.
 ### 🔤 Keyword Research Tools
 
 #### `extract_keywords_from_text`
+
 Extract keywords from any text content using advanced NLP techniques.
 
 **Parameters:**
+
 - `text` (string, required): Text content to extract keywords from
 - `minWordLength` (integer): Minimum word length (default: 3)
 - `maxKeywords` (integer): Maximum keywords to return (default: 50)
@@ -338,9 +370,11 @@ Extract keywords from any text content using advanced NLP techniques.
 **Returns:** Extracted keywords ranked by relevance and frequency.
 
 #### `extract_keywords_from_videos`
+
 Extract keywords from YouTube video titles, descriptions, and tags.
 
 **Parameters:**
+
 - `videoIds` (array, required): YouTube video IDs
 - `includeComments` (boolean): Include keywords from comments (default: false)
 - `maxCommentsPerVideo` (integer): Max comments to analyze (default: 100)
@@ -349,9 +383,11 @@ Extract keywords from YouTube video titles, descriptions, and tags.
 **Returns:** Comprehensive keyword list with frequency data and sources.
 
 #### `analyze_keywords`
+
 Perform comprehensive keyword analysis including scoring and competition analysis.
 
 **Parameters:**
+
 - `keywords` (array, required): Keywords to analyze
 - `includeRelated` (boolean): Include related keywords (default: true)
 - `includeCompetitionAnalysis` (boolean): Include competition analysis (default: true)
@@ -360,9 +396,11 @@ Perform comprehensive keyword analysis including scoring and competition analysi
 **Returns:** Keyword scores, competition metrics, related keywords, top competing videos.
 
 #### `generate_keyword_cloud`
+
 Generate a keyword cloud visualization with frequency and relevance data.
 
 **Parameters:**
+
 - `keywords` (array, required): Keywords for the cloud
 - `maxKeywords` (integer): Max keywords in cloud (default: 100)
 - `groupSimilar` (boolean): Group similar keywords (default: true)
@@ -371,9 +409,11 @@ Generate a keyword cloud visualization with frequency and relevance data.
 **Returns:** Keyword cloud data with sizing, grouping, and visualization information.
 
 #### `find_content_gaps`
+
 Identify content opportunities by analyzing keyword competition and search volume.
 
 **Parameters:**
+
 - `seedKeywords` (array, required): Keywords to analyze for gaps
 - `niche` (string, optional): Specific niche or industry focus
 - `competitorChannels` (array, optional): Competitor channel IDs
@@ -382,9 +422,11 @@ Identify content opportunities by analyzing keyword competition and search volum
 **Returns:** Competition level, search volume, content opportunities, suggested keywords.
 
 #### `analyze_keyword_opportunities`
+
 Analyze keywords for ranking potential and competition difficulty.
 
 **Parameters:**
+
 - `keywords` (array, required): Keywords to analyze
 - `maxResults` (integer, 1-50): Number of analyses (default: 25)
 - `includeRelated` (boolean): Include related keywords (default: true)
@@ -392,9 +434,11 @@ Analyze keywords for ranking potential and competition difficulty.
 **Returns:** Competition score, difficulty rating, opportunity score, related keywords.
 
 #### `keyword_research_workflow`
+
 **🎯 Complete end-to-end keyword research workflow.**
 
 **Parameters:**
+
 - `seedKeywords` (array, required): Initial seed keywords
 - `niche` (string, optional): Specific niche or industry focus
 - `maxVideosToAnalyze` (integer): Max videos to analyze (default: 50)
@@ -402,6 +446,7 @@ Analyze keywords for ranking potential and competition difficulty.
 - `generateKeywordCloud` (boolean): Generate keyword cloud (default: true)
 
 **Returns:** Complete keyword research report with:
+
 - Extracted keywords from discovered videos
 - Keyword analysis with scores and competition data
 - Keyword cloud visualization
@@ -428,6 +473,7 @@ This is the exact workflow you described: search videos → find channels → ex
 ```
 
 **This single tool will:**
+
 1. Search for videos using your seed keywords
 2. Identify channels from those videos
 3. Extract keywords from video titles, descriptions, and tags
@@ -455,7 +501,11 @@ This is the exact workflow you described: search videos → find channels → ex
 {
   "tool": "find_content_gaps",
   "arguments": {
-    "seedKeywords": ["python programming", "web development", "coding tutorial"],
+    "seedKeywords": [
+      "python programming",
+      "web development",
+      "coding tutorial"
+    ],
     "niche": "programming education",
     "competitorChannels": ["UC_channel1", "UC_channel2"],
     "maxResults": 15
@@ -494,24 +544,28 @@ This is the exact workflow you described: search videos → find channels → ex
 ## 🎯 Use Cases
 
 ### 📺 Content Creators
+
 - **Content Strategy**: Use `find_content_gaps` and `analyze_keyword_opportunities` to identify trending topics and underserved niches
 - **Competitor Research**: Analyze successful channels with `analyze_competitor` to understand their upload patterns, content themes, and engagement strategies
 - **Performance Optimization**: Use `analyze_viral_videos` to understand what makes content successful and apply those patterns
 - **Audience Engagement**: Track super fans with `get_commenter_frequency` and analyze comment sentiment
 
 ### 📊 Market Researchers
+
 - **Trend Analysis**: Monitor trending content and viral patterns across different categories and regions
 - **Competitive Intelligence**: Deep dive into competitor strategies, performance metrics, and content approaches
 - **Market Gaps**: Identify underserved content areas and opportunities using keyword gap analysis
 - **Audience Insights**: Understand viewer behavior, engagement patterns, and community dynamics
 
 ### 🏢 Content Agencies
+
 - **Client Research**: Comprehensive channel and competitor analysis for client strategy development
 - **Strategy Development**: Data-driven content planning and optimization based on viral patterns and keyword research
 - **Performance Tracking**: Monitor content performance, engagement metrics, and audience growth
 - **Network Mapping**: Understand influencer relationships and collaboration opportunities
 
 ### 🔬 Data Analysts
+
 - **YouTube Analytics**: Extract comprehensive data for analysis, reporting, and business intelligence
 - **Trend Forecasting**: Identify emerging trends, viral patterns, and content opportunities
 - **Engagement Analysis**: Deep dive into comment patterns, sentiment analysis, and audience behavior
@@ -523,21 +577,23 @@ This is the exact workflow you described: search videos → find channels → ex
 
 The server tracks YouTube API quota usage for each operation:
 
-| Operation | Quota Cost | Description |
-|-----------|------------|-------------|
-| Search operations | 100 units | Video, channel, playlist search |
-| Detail fetching | 1 unit | Get video/channel/playlist details |
-| Trending videos | 1 unit | Get trending video list |
-| Comment extraction | 1 unit per video | Extract comments from videos |
-| Channel analysis | Variable | Based on number of videos analyzed |
+| Operation          | Quota Cost       | Description                        |
+| ------------------ | ---------------- | ---------------------------------- |
+| Search operations  | 100 units        | Video, channel, playlist search    |
+| Detail fetching    | 1 unit           | Get video/channel/playlist details |
+| Trending videos    | 1 unit           | Get trending video list            |
+| Comment extraction | 1 unit per video | Extract comments from videos       |
+| Channel analysis   | Variable         | Based on number of videos analyzed |
 
 **Daily Quota Limits:**
+
 - **Free Tier**: 10,000 units/day
 - **Paid Tier**: 1,000,000+ units/day (billing required)
 
 ### Rate Limiting
 
 The server implements intelligent rate limiting:
+
 - Automatic retry with exponential backoff
 - Quota tracking and warnings
 - Graceful degradation when limits approached
@@ -570,14 +626,16 @@ The YouTube MCP Server includes a unified diagnostics CLI for comprehensive test
 ### Quick Start
 
 **Run comprehensive diagnostics:**
+
 ```bash
 # Check API health, analyze quota, and verify tool discovery
 npm run diagnostics health
-npm run diagnostics quota  
+npm run diagnostics quota
 npm run diagnostics discovery
 ```
 
 **Direct CLI usage:**
+
 ```bash
 # Build first if not already built
 npm run build
@@ -591,6 +649,7 @@ node dist/src/cli/mcp-diagnostics.js quota --verbose
 ### Available Commands
 
 #### `health` - API Health & Performance Check
+
 Validates YouTube API connectivity, measures performance, and checks current quota usage.
 
 ```bash
@@ -607,18 +666,20 @@ node dist/cli/mcp-diagnostics.js health --verbose
 ```
 
 **What it checks:**
+
 - ✅ API key validation and permissions
-- ✅ YouTube Data API connectivity  
+- ✅ YouTube Data API connectivity
 - ✅ Response time and performance metrics
 - ✅ Current quota usage and remaining capacity
 - ✅ Rate limiting status
 
 #### `quota` - Quota Analysis & Optimization
+
 Analyzes API quota usage patterns and provides budget recommendations for efficient testing.
 
 ```bash
 # Analyze quota usage patterns
-npm run test:quota-check  
+npm run test:quota-check
 # or
 node dist/cli/mcp-diagnostics.js quota
 
@@ -627,19 +688,21 @@ node dist/cli/mcp-diagnostics.js quota --json
 ```
 
 **Analysis includes:**
+
 - 📊 Tool-by-tool quota cost breakdown
-- 📊 High/Medium/Low cost tool categorization  
+- 📊 High/Medium/Low cost tool categorization
 - 📊 Budget recommendations for different usage patterns
 - 📊 Optimization suggestions for quota efficiency
 - 📊 Testing strategy recommendations
 
 #### `discovery` - Tool Discovery Verification
+
 Verifies that all tools are properly discovered and functional in both development and production modes.
 
 ```bash
 # Verify tool discovery
 npm run verify:tools
-# or  
+# or
 node dist/cli/mcp-diagnostics.js discovery
 
 # Verbose output showing individual tool tests
@@ -650,8 +713,9 @@ node dist/cli/mcp-diagnostics.js discovery --json
 ```
 
 **Verification process:**
+
 - 🔍 Development mode tool discovery
-- 🔍 Production mode tool discovery  
+- 🔍 Production mode tool discovery
 - 🔍 Tool interface compliance testing
 - 🔍 Parameter validation checks
 - 🔍 Error handling verification
@@ -662,11 +726,12 @@ node dist/cli/mcp-diagnostics.js discovery --json
 The diagnostics CLI integrates seamlessly with the development and testing workflow:
 
 **Daily Development:**
+
 ```bash
 # Quick health check before starting work
 npm run test:api-health
 
-# Verify changes haven't broken tool discovery  
+# Verify changes haven't broken tool discovery
 npm run verify:tools
 
 # Check quota usage when testing extensively
@@ -674,6 +739,7 @@ npm run test:quota-check
 ```
 
 **CI/CD Integration:**
+
 ```bash
 # Add to your CI pipeline
 npm run build
@@ -682,32 +748,36 @@ npm run diagnostics discovery
 ```
 
 **Troubleshooting Workflow:**
+
 1. **Start with health check**: `npm run diagnostics health`
-2. **If API issues, check quota**: `npm run diagnostics quota`  
+2. **If API issues, check quota**: `npm run diagnostics quota`
 3. **If tool issues, run discovery**: `npm run diagnostics discovery`
 4. **Use verbose/JSON flags for detailed analysis**
 
 ### Command Reference
 
-| Command | Purpose | npm Script | Direct CLI |
-|---------|---------|------------|------------|
-| **health** | API connectivity & performance | `npm run test:api-health` | `node dist/cli/mcp-diagnostics.js health` |
-| **quota** | Quota analysis & budgeting | `npm run test:quota-check` | `node dist/cli/mcp-diagnostics.js quota` |
-| **discovery** | Tool discovery verification | `npm run verify:tools` | `node dist/cli/mcp-diagnostics.js discovery` |
+| Command       | Purpose                        | npm Script                 | Direct CLI                                   |
+| ------------- | ------------------------------ | -------------------------- | -------------------------------------------- |
+| **health**    | API connectivity & performance | `npm run test:api-health`  | `node dist/cli/mcp-diagnostics.js health`    |
+| **quota**     | Quota analysis & budgeting     | `npm run test:quota-check` | `node dist/cli/mcp-diagnostics.js quota`     |
+| **discovery** | Tool discovery verification    | `npm run verify:tools`     | `node dist/cli/mcp-diagnostics.js discovery` |
 
 ### Output Formats
 
 **Human-readable (default):**
+
 - Color-coded status indicators
 - Formatted tables and progress indicators
 - Clear recommendations and next steps
 
 **JSON format (`--json` flag):**
+
 - Structured data for automation
 - Complete metrics and analysis results
 - Machine-parseable for CI/CD integration
 
 **Verbose mode (`--verbose` flag):**
+
 - Detailed diagnostic information
 - Step-by-step process visibility
 - Extended error messages and debugging info
@@ -715,26 +785,31 @@ npm run diagnostics discovery
 ### Common Use Cases
 
 **Before Development Session:**
+
 ```bash
 npm run diagnostics health  # Ensure API is working
 ```
 
-**After Making Changes:**  
+**After Making Changes:**
+
 ```bash
 npm run diagnostics discovery  # Verify tools still work
 ```
 
 **When Tests Are Slow:**
+
 ```bash
 npm run diagnostics quota  # Check if quota is the issue
 ```
 
 **For CI/CD Health Checks:**
+
 ```bash
 node dist/cli/mcp-diagnostics.js health --json  # Automated health monitoring
 ```
 
 **For Debugging Issues:**
+
 ```bash
 node dist/cli/mcp-diagnostics.js discovery --verbose  # Detailed tool analysis
 ```
@@ -748,16 +823,19 @@ This server includes a comprehensive automated debugging system that helps ident
 ### Quick Start
 
 **Enable automated debugging (runs after every build):**
+
 ```bash
 npm run build  # Includes automatic post-build debugging
 ```
 
 **Manual debugging session:**
+
 ```bash
 npm run debug:manual  # Run comprehensive debugging manually
 ```
 
 **Build without debugging:**
+
 ```bash
 npm run build:no-debug  # Skip automated debugging
 ```
@@ -767,7 +845,7 @@ npm run build:no-debug  # Skip automated debugging
 The debugging system automatically:
 
 1. **Monitors Tool Execution**: Every tool call is tracked with timing, quota usage, and success/failure status
-2. **Analyzes Log Files**: Scans debug logs and MCP task histories for error patterns  
+2. **Analyzes Log Files**: Scans debug logs and MCP task histories for error patterns
 3. **Correlates Issues**: Groups related errors and identifies common failure patterns
 4. **Generates Recommendations**: Provides specific, actionable solutions for detected problems
 5. **Provides Real-time Alerts**: Notifies about issues as they occur during development
@@ -778,7 +856,7 @@ The debugging hooks are automatically triggered during:
 
 - **Server Startup**: Health checks and configuration validation
 - **Tool Calls**: Performance monitoring and error detection
-- **API Failures**: Automatic analysis of YouTube API errors  
+- **API Failures**: Automatic analysis of YouTube API errors
 - **Build Process**: Post-build validation and issue detection
 
 ### Error Detection & Analysis
@@ -786,16 +864,19 @@ The debugging hooks are automatically triggered during:
 The system detects and provides recommendations for:
 
 **API Issues:**
+
 - Quota exceeded errors → Caching strategies and optimization tips
 - Authentication failures → API key validation and setup guidance
 - Rate limiting → Request throttling and retry strategies
 
 **Tool Execution Problems:**
+
 - Parameter validation errors → Input format corrections
-- Timeout issues → Performance optimization suggestions  
+- Timeout issues → Performance optimization suggestions
 - Connection failures → Network troubleshooting steps
 
 **MCP Server Issues:**
+
 - Server startup failures → Configuration and environment fixes
 - Client connection problems → Transport and binding solutions
 - Protocol errors → Version compatibility and format issues
@@ -803,6 +884,7 @@ The system detects and provides recommendations for:
 ### Configuration
 
 **Environment Variables:**
+
 ```bash
 # Enable debug logging to console
 DEBUG_CONSOLE=true
@@ -818,22 +900,20 @@ EXTRA_LOG_SOURCES=/path/to/app.log,/path/to/error.log
 ```
 
 **Debug Configuration File (optional):**
+
 ```json
 {
   "enableContinuousMonitoring": true,
   "monitoringInterval": 30,
   "errorCorrelationWindow": 5,
-  "logSources": [
-    "./debug.log",
-    "~/.cline/tasks",
-    "/var/log/mcp-server.log"
-  ]
+  "logSources": ["./debug.log", "~/.cline/tasks", "/var/log/mcp-server.log"]
 }
 ```
 
 ### Troubleshooting Common Issues
 
 **"Debug logs not being created":**
+
 ```bash
 # Check file permissions
 ls -la debug.log
@@ -846,6 +926,7 @@ DEBUG_FILE_LOGGING=false npm run build
 ```
 
 **"Debugging seems slow":**
+
 ```bash
 # Disable continuous monitoring
 npm run debug:manual  # Run once instead of continuous
@@ -855,6 +936,7 @@ EXTRA_LOG_SOURCES="" npm run build
 ```
 
 **"Missing recommendations":**
+
 - Ensure sufficient log history exists (run a few tool operations first)
 - Check that error logs contain structured JSON format
 - Verify log file permissions and accessibility
@@ -863,17 +945,19 @@ EXTRA_LOG_SOURCES="" npm run build
 
 **Custom Log Sources:**
 Add your application logs to the monitoring system:
+
 ```bash
 export EXTRA_LOG_SOURCES="/path/to/app.log,/path/to/error.log"
 npm run debug:manual
 ```
 
 **Integration with CI/CD:**
+
 ```yaml
 # .github/workflows/debug.yml
 - name: Build with debugging
-  run: npm run build  # Includes automated debugging
-  
+  run: npm run build # Includes automated debugging
+
 - name: Upload debug report
   if: failure()
   uses: actions/upload-artifact@v3
@@ -883,6 +967,7 @@ npm run debug:manual
 ```
 
 **Monitoring Multiple Servers:**
+
 ```bash
 # Monitor specific MCP server logs
 DEBUG_LOG_DIR=/shared/mcp-logs npm run debug:manual
@@ -897,7 +982,7 @@ EXTRA_LOG_SOURCES="/path/to/other-mcp.log" npm run build
 # Run complete debugging workflow
 npm run debug:manual
 
-# Post-build debugging only  
+# Post-build debugging only
 npm run debug:post-build
 
 # Build with debugging (default)
@@ -910,6 +995,7 @@ npm run build:no-debug
 ### Debug Output
 
 The debugging system creates:
+
 - `debug.log` - Structured debug information
 - `debug-session-*.json` - Complete debug reports
 - Console output with color-coded recommendations
@@ -918,13 +1004,13 @@ The debugging system creates:
 
 For detailed documentation, please refer to the following guides:
 
--   **[Quick Start Guide](docs/overview/quick-start.md)**: Get up and running in minutes.
--   **[Installation Guide](docs/deployment/install-on-other-computers.md)**: Detailed installation instructions.
--   **[Configuration Guide](docs/configuration/client-setup.md)**: How to configure your MCP client.
--   **[Deployment Guide](docs/deployment/npm-publish.md)**: Publishing new versions to NPM.
--   **[Testing Guide](docs/testing/inspector-manual-guide.md)**: How to test the server.
--   **[Tool Catalogue](docs/reference/tools-catalogue.md)**: A comprehensive list of all available tools.
--   **[System Architecture](docs/architecture/system-overview.md)**: An overview of the server's architecture.
+- **[Quick Start Guide](docs/overview/quick-start.md)**: Get up and running in minutes.
+- **[Installation Guide](docs/deployment/install-on-other-computers.md)**: Detailed installation instructions.
+- **[Configuration Guide](docs/configuration/client-setup.md)**: How to configure your MCP client.
+- **[Deployment Guide](docs/deployment/npm-publish.md)**: Publishing new versions to NPM.
+- **[Testing Guide](docs/testing/inspector-manual-guide.md)**: How to test the server.
+- **[Tool Catalogue](docs/reference/tools-catalogue.md)**: A comprehensive list of all available tools.
+- **[System Architecture](docs/architecture/system-overview.md)**: An overview of the server's architecture.
 
 ## �🔧 Development
 
@@ -961,6 +1047,7 @@ The YouTube MCP Server implements a comprehensive hierarchical testing strategy 
 ### Quick Interface Validation (Primary)
 
 **Start here for 80% of use cases:**
+
 ```bash
 # Fast development feedback - catches most issues with minimal quota
 npm run test:quick
@@ -976,6 +1063,7 @@ npm run test:interface:budget
 ```
 
 **When to use interface tests:**
+
 - ✅ Daily development workflow
 - ✅ Pull request validation
 - ✅ CI/CD pipeline testing
@@ -985,6 +1073,7 @@ npm run test:interface:budget
 ### Individual Tool Testing (Deep Debugging)
 
 **Use when interface tests pass but you need deeper validation:**
+
 ```bash
 # Test a specific tool (replace with actual tool name)
 npm run test:tool -- --testNamePattern="searchVideos"
@@ -1006,6 +1095,7 @@ npm run test:debug
 ```
 
 **When to use individual tool tests:**
+
 - 🔍 Interface tests pass but specific tool behavior is suspect
 - 🔍 Debugging complex tool interactions
 - 🔍 Validating edge cases and error handling
@@ -1015,12 +1105,14 @@ npm run test:debug
 ### Complete Hierarchical Workflow
 
 **The recommended testing flow:**
+
 ```bash
 # Run interface tests first, get guidance for next steps
 npm run test:hierarchical
 ```
 
 This command:
+
 1. Runs interface compliance tests first
 2. If successful, provides guidance on individual tool testing
 3. Optimizes quota usage by starting with broad validation
@@ -1028,18 +1120,19 @@ This command:
 
 ### Testing Mode Examples
 
-| Scenario | Command | Purpose | Quota Usage |
-|----------|---------|---------|-------------|
-| **Development** | `npm run test:quick` | Fast feedback loop | Very Low |
-| **PR Review** | `npm run test:interface` | Comprehensive validation | Low |
-| **CI/CD** | `npm run test:interface:budget` | Automated testing | Medium |
-| **Debugging** | `npm run test:tool -- tool-name` | Specific issue investigation | Medium |
-| **Full Validation** | `npm run test:tools` | Complete testing | High |
-| **Performance** | `npm run test:debug` | Extended diagnostics | Variable |
+| Scenario            | Command                          | Purpose                      | Quota Usage |
+| ------------------- | -------------------------------- | ---------------------------- | ----------- |
+| **Development**     | `npm run test:quick`             | Fast feedback loop           | Very Low    |
+| **PR Review**       | `npm run test:interface`         | Comprehensive validation     | Low         |
+| **CI/CD**           | `npm run test:interface:budget`  | Automated testing            | Medium      |
+| **Debugging**       | `npm run test:tool -- tool-name` | Specific issue investigation | Medium      |
+| **Full Validation** | `npm run test:tools`             | Complete testing             | High        |
+| **Performance**     | `npm run test:debug`             | Extended diagnostics         | Variable    |
 
 ### Quota-Aware Testing
 
 **Check quota before testing:**
+
 ```bash
 # Estimate quota usage for different testing approaches
 npm run test:quota-check
@@ -1049,6 +1142,7 @@ npm run test:api-health
 ```
 
 **Budget recommendations:**
+
 - **Development (1,000 units/day)**: Use `test:interface:minimal` primarily
 - **CI/CD (10,000 units/day)**: Use `test:interface` for automation
 - **Deep debugging**: Use `test:tool` for specific issues only
@@ -1083,16 +1177,19 @@ npm run test:integration
 ### Best Practices
 
 **For Development:**
+
 - Start with `npm run test:quick` for immediate feedback
 - Use `npm run test:interface:minimal` for regular validation
 - Only run individual tool tests when debugging specific issues
 
 **For CI/CD:**
+
 - Use `npm run test:hierarchical` as the primary test command
 - Set appropriate quota limits with environment variables
 - Include quota checking in pipeline health monitoring
 
 **For Debugging:**
+
 - Run interface tests first to isolate scope
 - Use specific tool tests (`test:tool`) for targeted debugging
 - Enable debug mode (`test:debug`) for complex issues
@@ -1150,6 +1247,7 @@ youtube-mcp-server/
 8. **Submit a Pull Request**
 
 **Development Guidelines:**
+
 - Follow TypeScript best practices
 - Add tests for new tools and functionality
 - Update documentation for API changes
@@ -1185,17 +1283,20 @@ SOFTWARE.
 ### Troubleshooting
 
 **Server won't start:**
+
 - Check Node.js version (requires 16+)
 - Verify API key is set: `echo $YOUTUBE_API_KEY`
 - Ensure project is built: `npm run build`
 - Check for port conflicts
 
 **API quota issues:**
+
 - Monitor usage in Google Cloud Console
 - Consider upgrading to paid tier for higher limits
 - Optimize tool usage to reduce quota consumption
 
 **Missing results:**
+
 - Verify API key has YouTube Data API enabled
 - Check search parameters are valid
 - Ensure region codes are ISO 3166-1 alpha-2 format
@@ -1225,4 +1326,4 @@ A: Yes! Follow the development guide to add new tools.
 
 **Built with ❤️ for the MCP community**
 
-*This server provides comprehensive YouTube analytics and research capabilities through the Model Context Protocol, enabling AI assistants to perform sophisticated content analysis and discovery workflows.*
+_This server provides comprehensive YouTube analytics and research capabilities through the Model Context Protocol, enabling AI assistants to perform sophisticated content analysis and discovery workflows._

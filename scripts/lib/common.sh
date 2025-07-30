@@ -18,6 +18,34 @@ declare -a FAILED=()
 declare -a SKIPPED=()
 declare -a INFO=()
 
+# Timing instrumentation global variables
+declare -a TIMING_DATA_KEYS=()
+SLOW_THRESHOLD_SECONDS=10
+VERY_SLOW_THRESHOLD_SECONDS=30
+
+# Reset all timing data
+reset_timing() {
+    # Iterate over existing timing keys to unset variables
+    for section_name in "${TIMING_DATA_KEYS[@]}"; do
+        if [ -n "$section_name" ]; then
+            # Unset start time variable
+            local start_var="TIMING_${section_name}_start"
+            unset "$start_var"
+            
+            # Unset duration variable
+            local duration_var="TIMING_${section_name}_duration"
+            unset "$duration_var"
+        fi
+    done
+    
+    # Clear the keys array
+    TIMING_DATA_KEYS=()
+    
+    if [ "${LOG_TIMING:-true}" = "true" ]; then
+        debug "Timing data has been reset"
+    fi
+}
+
 # Logging functions
 log() {
     local message="$1"
@@ -188,17 +216,173 @@ show_spinner() {
     printf "    \b\b\b\b"
 }
 
-# Format time duration
+# Format time duration with color coding
 format_duration() {
     local seconds=$1
+    local color_duration=""
     local minutes=$((seconds / 60))
     local remaining_seconds=$((seconds % 60))
     
+    local formatted_time
     if [ $minutes -gt 0 ]; then
-        echo "${minutes}m ${remaining_seconds}s"
+        formatted_time="${minutes}m ${remaining_seconds}s"
     else
-        echo "${seconds}s"
+        formatted_time="${seconds}s"
     fi
+    
+    # Add color coding based on duration
+    if [ $seconds -lt 5 ]; then
+        color_duration="${GREEN}${formatted_time}${NC}"
+    elif [ $seconds -lt 30 ]; then
+        color_duration="${YELLOW}${formatted_time}${NC}"
+    else
+        color_duration="${RED}${formatted_time}${NC}"
+    fi
+    
+    echo -e "$color_duration"
+}
+
+# Begin timing for a named section (bash 3.x compatible)
+begin_timing() {
+    local section_name="$1"
+    if [ -z "$section_name" ]; then
+        error "begin_timing: section name is required"
+        return 1
+    fi
+    
+    # Store timing data using simple variables (bash 3.x compatible)
+    eval "TIMING_${section_name}_start=$(date +%s)"
+    
+    # Add to keys array for summary
+    local already_exists=0
+    # Check if array is not empty before iterating
+    if [ ${#TIMING_DATA_KEYS[@]} -gt 0 ]; then
+        for key in "${TIMING_DATA_KEYS[@]}"; do
+            if [[ "$key" == "$section_name" ]]; then
+                already_exists=1
+                break
+            fi
+        done
+    fi
+    if [ $already_exists -eq 0 ]; then
+        TIMING_DATA_KEYS+=("$section_name")
+    fi
+    
+    # Enable detailed timing if LOG_TIMING is set
+    if [ "${LOG_TIMING:-true}" = "true" ]; then
+        debug "Started timing section: $section_name"
+    fi
+}
+
+# End timing for a named section (bash 3.x compatible)
+end_timing() {
+    local section_name="$1"
+    if [ -z "$section_name" ]; then
+        error "end_timing: section name is required"
+        return 1
+    fi
+    
+    local start_var="TIMING_${section_name}_start"
+    local start_time
+    eval "start_time=\$$start_var"
+    
+    if [ -z "$start_time" ]; then
+        warning "end_timing: no start time found for section $section_name"
+        add_status "$section_name" "failed"
+        return 1
+    fi
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    # Store the final duration
+    eval "TIMING_${section_name}_duration=$duration"
+    
+    # Log with color coding based on duration
+    if [ "${LOG_TIMING:-true}" = "true" ]; then
+        if [ $duration -gt $VERY_SLOW_THRESHOLD_SECONDS ]; then
+            error "VERY SLOW: Section $section_name took $(format_duration $duration)"
+        elif [ $duration -gt $SLOW_THRESHOLD_SECONDS ]; then
+            warning "SLOW: Section $section_name took $(format_duration $duration)"
+        else
+            info "Section $section_name completed in $(format_duration $duration)"
+        fi
+    fi
+}
+
+# Get duration for a completed section (bash 3.x compatible)
+get_section_duration() {
+    local section_name="$1"
+    if [ -z "$section_name" ]; then
+        error "get_section_duration: section name is required"
+        return 1
+    fi
+    
+    local duration_var="TIMING_${section_name}_duration"
+    local duration
+    eval "duration=\$$duration_var"
+    
+    # Return empty string and non-zero exit code if duration not found
+    if [ -z "$duration" ]; then
+        return 1
+    fi
+    
+    echo "$duration"
+}
+
+# Log timing summary for all sections
+log_timing_summary() {
+    if [ ${#TIMING_DATA_KEYS[@]} -eq 0 ]; then
+        info "No timing data available"
+        return 0
+    fi
+    
+    echo ""
+    log "⏱️  TIMING SUMMARY" "$MAGENTA"
+    echo "======================================"
+    
+    local total_time=0
+    local slow_sections=""
+    
+    # Iterate through all recorded sections
+    for section_name in "${TIMING_DATA_KEYS[@]}"; do
+        if [ -n "$section_name" ]; then
+            local duration_var="TIMING_${section_name}_duration"
+            local duration
+            eval "duration=\$$duration_var"
+            
+            if [ -n "$duration" ] && [ "$duration" -gt 0 ]; then
+                # Add to total time
+                total_time=$((total_time + duration))
+                
+                # Format and display
+                local formatted_duration=$(format_duration $duration)
+                echo -e "  $section_name: $formatted_duration"
+                
+                # Track slow sections
+                if [ $duration -gt $SLOW_THRESHOLD_SECONDS ]; then
+                    slow_sections="$slow_sections $section_name"
+                fi
+            fi
+        fi
+    done
+    
+    echo "======================================"
+    log "📊 Total Time: $(format_duration $total_time)" "$CYAN"
+    
+    # Highlight slow sections
+    if [ -n "$slow_sections" ]; then
+        echo ""
+        warning "⚠️  Slow sections (>${SLOW_THRESHOLD_SECONDS}s):"
+        for slow_section in $slow_sections; do
+            local duration_var="TIMING_${slow_section}_duration"
+            local duration
+            eval "duration=\$$duration_var"
+            echo "    - $slow_section ($(format_duration $duration))"
+        done
+    fi
+    
+    echo ""
 }
 
 # Get current timestamp
@@ -235,3 +419,4 @@ export -f cleanup_temp_files handle_error
 export -f validate_environment show_spinner
 export -f format_duration get_timestamp
 export -f is_macos is_linux get_claude_logs_dir
+export -f begin_timing end_timing get_section_duration log_timing_summary reset_timing

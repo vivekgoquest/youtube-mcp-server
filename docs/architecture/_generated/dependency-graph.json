@@ -1,0 +1,556 @@
+{
+  "edges": [
+    {
+      "from": "src/index.ts",
+      "to": "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/index.d.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/stdio.d.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "node_modules/@modelcontextprotocol/sdk/dist/cjs/types.d.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/mcp-server.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/prompts/index.ts"
+    },
+    {
+      "from": "src/mcp-server.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/mcp-server.ts",
+      "to": "src/registry/tool-registry.ts"
+    },
+    {
+      "from": "src/mcp-server.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/mcp-server.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/mcp-server.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/youtube-client.ts",
+      "to": "node_modules/axios/index.d.cts"
+    },
+    {
+      "from": "src/youtube-client.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/youtube-client.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/cli/mcp-diagnostics.ts",
+      "to": "node_modules/commander/typings/index.d.ts"
+    },
+    {
+      "from": "src/cli/mcp-diagnostics.ts",
+      "to": "node_modules/chalk/source/index.d.ts"
+    },
+    {
+      "from": "src/cli/mcp-diagnostics.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/config/global-config.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/config/global-config.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/interfaces/tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/interfaces/tool.ts",
+      "to": "src/registry/tool-registry.ts"
+    },
+    {
+      "from": "src/prompts/index.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/prompts/index.ts",
+      "to": "src/prompts/templates/find-niche-channels.ts"
+    },
+    {
+      "from": "src/registry/tool-registry.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/registry/tool-registry.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/registry/tool-registry.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/analyze-channel-videos.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/analyze-channel-videos.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/analyze-channel-videos.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/analyze-channel-videos.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/analyze-channel-videos.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/analyze-competitor.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/analyze-competitor.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/analyze-competitor.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/analyze-competitor.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/analyze-competitor.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/analyze-keyword-opportunities.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/analyze-keyword-opportunities.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/analyze-keyword-opportunities.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/analyze-keyword-opportunities.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/analyze-keywords.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/analyze-keywords.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/analyze-keywords.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/analyze-keywords.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/analyze-viral-videos.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/analyze-viral-videos.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/analyze-viral-videos.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/analyze-viral-videos.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/discover-channel-network.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/discover-channel-network.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/discover-channel-network.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/discover-channel-network.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-text.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-text.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-text.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-text.tool.ts",
+      "to": "src/utils/text-processing.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-text.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/utils/text-processing.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/extract-keywords-from-videos.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/extract-video-comments.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/extract-video-comments.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/extract-video-comments.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/extract-video-comments.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/find-content-gaps.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/find-content-gaps.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/find-content-gaps.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/find-content-gaps.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/generate-keyword-cloud.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/generate-keyword-cloud.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/generate-keyword-cloud.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/generate-keyword-cloud.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/get-channel-details.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/get-channel-details.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/get-channel-details.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/get-channel-details.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/get-channel-details.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/get-playlist-details.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/get-playlist-details.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/get-playlist-details.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/get-playlist-details.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/get-playlist-details.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/get-trending-videos.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/get-trending-videos.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/get-trending-videos.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/get-trending-videos.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/get-trending-videos.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/get-video-details.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/get-video-details.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/get-video-details.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/get-video-details.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/get-video-details.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/keyword-research-workflow.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/keyword-research-workflow.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/keyword-research-workflow.tool.ts",
+      "to": "src/registry/tool-registry.ts"
+    },
+    {
+      "from": "src/tools/keyword-research-workflow.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/keyword-research-workflow.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/search-channels.tool.ts",
+      "to": "src/utils/search-enrichment.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/tools/search-playlists.tool.ts",
+      "to": "src/utils/search-enrichment.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/interfaces/tool.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/utils/search-validation.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/utils/search-enrichment.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/utils/quota-calculator.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/tools/unified-search.tool.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/utils/error-handler.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/quota-calculator.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/quota-calculator.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/utils/response-validator.ts",
+      "to": "node_modules/ajv/dist/ajv.d.ts"
+    },
+    {
+      "from": "src/utils/response-validator.ts",
+      "to": "node_modules/ajv-formats/dist/index.d.ts"
+    },
+    {
+      "from": "src/utils/response-validator.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/response-validator.ts",
+      "to": "src/mcp-server.ts"
+    },
+    {
+      "from": "src/utils/response-validator.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/utils/search-enrichment.ts",
+      "to": "src/youtube-client.ts"
+    },
+    {
+      "from": "src/utils/search-enrichment.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/search-enrichment.ts",
+      "to": "src/config/global-config.ts"
+    },
+    {
+      "from": "src/utils/search-enrichment.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/utils/search-enrichment.ts",
+      "to": "src/config/constants.ts"
+    },
+    {
+      "from": "src/utils/search-validation.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/search-validation.ts",
+      "to": "src/utils/search-enrichment.ts"
+    },
+    {
+      "from": "src/utils/search-validation.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
+      "from": "src/utils/text-processing.ts",
+      "to": "src/types.ts"
+    },
+    {
+      "from": "src/utils/text-processing.ts",
+      "to": "node_modules/compromise/types/three.d.cts"
+    },
+    {
+      "from": "src/prompts/templates/find-niche-channels.ts",
+      "to": "src/types.ts"
+    }
+  ]
+}

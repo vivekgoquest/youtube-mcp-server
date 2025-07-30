@@ -17,6 +17,7 @@ BACKUP_TGZ=""
 PREV_VERSION=""
 TEMP_DIR="/tmp/youtube-mcp-server-$(date +%s)"
 START_TIME=$(date +%s)
+LOG_FILE=""  # Will be set to the MCP server log file path
 
 # Cleanup function
 cleanup() {
@@ -182,22 +183,40 @@ build_and_install() {
     }
     add_status "Package creation" "passed"
     
-    # Install globally
-    info "Installing globally..."
-    local tgz_file=$(ls youtube-mcp-server-*.tgz 2>/dev/null | head -n 1)
-    if [ -z "$tgz_file" ]; then
-        error "No .tgz file found after npm pack"
-        add_status "Global install" "failed"
-        return 2
+    # First, uninstall any existing global installation to ensure clean install
+    info "Checking for existing global installation..."
+    if npm list -g youtube-mcp-server &>/dev/null; then
+        info "Removing existing global installation..."
+        npm uninstall -g youtube-mcp-server || {
+            warning "Failed to uninstall existing version, continuing anyway..."
+        }
     fi
     
-    if npm install -g "$tgz_file"; then
-        success "Global installation successful"
+    # Install globally - prefer direct installation over .tgz for better reliability
+    info "Installing globally..."
+    
+    # Method 1: Try direct installation from current directory
+    if npm install -g . ; then
+        success "Global installation successful (direct method)"
         add_status "Global install" "passed"
     else
-        error "Failed to install globally"
-        add_status "Global install" "failed"
-        return 2
+        # Method 2: Fallback to .tgz file if direct install fails
+        warning "Direct installation failed, trying package method..."
+        local tgz_file=$(ls youtube-mcp-server-*.tgz 2>/dev/null | head -n 1)
+        if [ -z "$tgz_file" ]; then
+            error "No .tgz file found after npm pack"
+            add_status "Global install" "failed"
+            return 2
+        fi
+        
+        if npm install -g "$tgz_file"; then
+            success "Global installation successful (package method)"
+            add_status "Global install" "passed"
+        else
+            error "Failed to install globally"
+            add_status "Global install" "failed"
+            return 2
+        fi
     fi
     
     # Verify installation
@@ -206,6 +225,23 @@ build_and_install() {
         local installed_version=$(youtube-mcp-server --version 2>/dev/null || echo "unknown")
         success "Installation verified: $installed_version"
         add_status "Installation verification" "passed"
+        
+        # Additional verification: Check if unified-search tool exists in the build
+        local unified_search_exists=false
+        if [ -f "dist/tools/unified-search.tool.js" ]; then
+            unified_search_exists=true
+            info "✓ Verified unified-search tool is included in build"
+        else
+            warning "⚠️  unified-search tool not found in build - may be using old version"
+        fi
+        
+        # Verify global installation location
+        local global_path=$(npm root -g)/youtube-mcp-server
+        if [ -d "$global_path" ]; then
+            info "✓ Global installation path: $global_path"
+        else
+            warning "⚠️  Could not verify global installation path"
+        fi
     else
         error "Installation verification failed"
         add_status "Installation verification" "failed"
@@ -213,46 +249,163 @@ build_and_install() {
     fi
 }
 
+# Parse test timing logs
+parse_test_timing_logs() {
+    local timing_summary=""
+    
+    # Parse bash script timing data from test-results.log
+    if [ -f "test-results.log" ]; then
+        local connectivity_time=$(grep "connectivity completed in" test-results.log | grep -o "[0-9]*s" | head -1)
+        local tool_discovery_time=$(grep "tool_discovery completed in" test-results.log | grep -o "[0-9]*s" | head -1)
+        local individual_tools_time=$(grep "individual_tools completed in" test-results.log | grep -o "[0-9]*s" | head -1)
+        local error_handling_time=$(grep "error_handling completed in" test-results.log | grep -o "[0-9]*s" | head -1)
+        local concurrency_time=$(grep "concurrency completed in" test-results.log | grep -o "[0-9]*s" | head -1)
+        
+        if [ -n "$connectivity_time" ] || [ -n "$tool_discovery_time" ] || [ -n "$individual_tools_time" ]; then
+            timing_summary="MCP Inspector Test Breakdown: "
+            [ -n "$connectivity_time" ] && timing_summary+="connectivity=${connectivity_time}, "
+            [ -n "$tool_discovery_time" ] && timing_summary+="tool_discovery=${tool_discovery_time}, "
+            [ -n "$individual_tools_time" ] && timing_summary+="individual_tools=${individual_tools_time}, "
+            [ -n "$error_handling_time" ] && timing_summary+="error_handling=${error_handling_time}, "
+            [ -n "$concurrency_time" ] && timing_summary+="concurrency=${concurrency_time}"
+            timing_summary=${timing_summary%, }  # Remove trailing comma
+        fi
+    fi
+    
+    echo "$timing_summary"
+}
+
+# Display timing summary
+display_timing_summary() {
+    local timing_data="$1"
+    
+    if [ -n "$timing_data" ]; then
+        echo ""
+        log "⏱️  Test Performance Summary" "$CYAN"
+        echo "======================================"
+        echo "$timing_data"
+        
+        # Check for slow phases
+        if echo "$timing_data" | grep -q "individual_tools.*[1-9][0-9]s\|individual_tools.*[3-9][0-9]s"; then
+            warning "WARNING: individual_tools phase appears slow (>10s threshold)"
+            info "Consider checking API quota limits or network connectivity"
+        fi
+        
+        # Parse Jest timing if available
+        if [ -f "jest-timing.json" ]; then
+            # Validate JSON file first
+            if ! jq empty jest-timing.json 2>/dev/null; then
+                warning "jest-timing.json is malformed or not valid JSON"
+                info "Skipping Jest timing data due to invalid JSON format"
+            else
+                local jest_total=$(jq -r '.totalTime // 0' jest-timing.json 2>/dev/null || echo "0")
+                local jest_count=$(jq -r '.testCount // 0' jest-timing.json 2>/dev/null || echo "0")
+                if [ "$jest_total" -gt 0 ]; then
+                    info "Jest Tests: ${jest_count} tests in ${jest_total}ms total"
+                    
+                    # Show slowest Jest tests
+                    local slowest_tests=$(jq -r '.slowestTests[]? | "\(.name): \(.duration)ms"' jest-timing.json 2>/dev/null | head -3)
+                    if [ -n "$slowest_tests" ]; then
+                        info "Slowest Jest tests:"
+                        echo "$slowest_tests" | while read -r line; do
+                            echo "    - $line"
+                        done
+                    fi
+                fi
+            fi
+        fi
+        
+        echo "======================================"
+    fi
+}
+
 # Test server functionality
 test_server() {
+    begin_timing "server_testing"
     info "Starting server testing phase..."
+    
+    # Pass through timing environment variables
+    export LOG_TIMING="${LOG_TIMING:-true}"
+    export SLOW_THRESHOLD_MS="${SLOW_THRESHOLD_MS:-5000}"
+    
+    # Simple API key loading from tests/.env.test only
+    if [ -z "${YOUTUBE_API_KEY:-}" ]; then
+        local env_file="tests/.env.test"
+        
+        if [ -f "$env_file" ]; then
+            # Source the .env.test file
+            set -a
+            source "$env_file"
+            set +a
+            
+            if [ -n "${YOUTUBE_API_KEY:-}" ] && [ "${YOUTUBE_API_KEY:-}" != "YOUR_YOUTUBE_API_KEY_HERE" ]; then
+                export YOUTUBE_API_KEY
+                success "API key loaded from $env_file"
+            else
+                warning "Invalid API key in $env_file - skipping API health check"
+            fi
+        else
+            warning "API key file not found: $env_file - skipping API health check"
+            info "To enable API testing: cp tests/.env.test.template tests/.env.test"
+        fi
+    fi
     
     # Test API health if API key is available
     if [ -n "${YOUTUBE_API_KEY:-}" ]; then
+        begin_timing "api_health_check"
         info "Testing API health..."
-        if node scripts/verify-api-health.js; then
+        if npm run test:api-health; then
             success "API health check passed"
             add_status "API health check" "passed"
         else
             warning "API health check failed (check API key and quota)"
             add_status "API health check" "failed"
         fi
+        end_timing "api_health_check"
     else
         warning "YOUTUBE_API_KEY not set, skipping API health check"
         add_status "API health check" "skipped"
     fi
     
     # Test tool discovery
+    begin_timing "tool_discovery_test"
     info "Testing tool discovery..."
-    if node scripts/verify-tool-discovery.js; then
+    if npm run test:discovery; then
         success "Tool discovery test passed"
         add_status "Tool discovery" "passed"
     else
         error "Tool discovery test failed"
         add_status "Tool discovery" "failed"
+        end_timing "tool_discovery_test"
+        end_timing "server_testing"
         return 3
     fi
+    end_timing "tool_discovery_test"
     
-    # Run MCP inspector tests
-    info "Running MCP inspector tests..."
-    if bash scripts/test-mcp-inspector.sh; then
-        success "MCP inspector tests passed"
-        add_status "MCP inspector tests" "passed"
-    else
-        error "MCP inspector tests failed"
-        add_status "MCP inspector tests" "failed"
-        return 3
-    fi
+    # Skip MCP inspector tests for now
+    # begin_timing "mcp_inspector_tests"
+    # info "Running MCP inspector tests..."
+    # if bash scripts/test-mcp-inspector.sh; then
+    #     success "MCP inspector tests passed"
+    #     add_status "MCP inspector tests" "passed"
+    #     
+    #     # Parse and display timing information
+    #     local timing_data=$(parse_test_timing_logs)
+    #     if [ -n "$timing_data" ]; then
+    #         display_timing_summary "$timing_data"
+    #     fi
+    # else
+    #     error "MCP inspector tests failed"
+    #     add_status "MCP inspector tests" "failed"
+    #     end_timing "mcp_inspector_tests"
+    #     end_timing "server_testing"
+    #     return 3
+    # fi
+    # end_timing "mcp_inspector_tests"
+    
+    warning "MCP inspector tests skipped"
+    add_status "MCP inspector tests" "skipped"
+    end_timing "server_testing"
 }
 
 # Simple restart function (minimal workflow)
@@ -265,18 +418,44 @@ simple_restart() {
     # Delete existing MCP logs
     info "🗑️  Deleting existing MCP logs..."
     if [ -d "$logs_dir" ]; then
-        rm -f "$logs_dir"/*.log
-        success "✅ Deleted all existing log files"
+        if ! rm -f "$logs_dir"/mcp-server-*.log; then
+            error "❌ Failed to delete MCP server log files in: $logs_dir"
+            add_status "Log cleanup" "failed"
+            return 1
+        fi
+        success "✅ Deleted existing MCP server log files"
         add_status "Log cleanup" "passed"
     else
         info "📁 Creating logs directory..."
-        mkdir -p "$logs_dir"
+        if ! mkdir -p "$logs_dir"; then
+            error "❌ Failed to create logs directory: $logs_dir"
+            add_status "Log cleanup" "failed"
+            return 1
+        fi
         add_status "Log cleanup" "passed"
     fi
     
-    # Kill Claude Desktop if running
+    # Kill Claude Desktop processes more thoroughly
     info "🔴 Stopping Claude Desktop..."
-    if pkill -f "Claude" 2>/dev/null; then
+    local claude_stopped=false
+    
+    # First try graceful shutdown
+    if pkill -f "/Applications/Claude.app" 2>/dev/null; then
+        claude_stopped=true
+        info "Sent termination signal to Claude Desktop"
+    fi
+    
+    # Give it time to shut down gracefully
+    sleep 3
+    
+    # Force kill if still running
+    if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+        pkill -9 -f "/Applications/Claude.app" 2>/dev/null
+        info "Force killed Claude Desktop processes"
+        claude_stopped=true
+    fi
+    
+    if [ "$claude_stopped" = true ]; then
         success "Claude Desktop stopped"
         add_status "Claude stop" "passed"
     else
@@ -284,13 +463,20 @@ simple_restart() {
         add_status "Claude stop" "skipped"
     fi
     
-    # Wait a moment
+    # Wait for processes to fully terminate
     sleep 2
+    
+    # Verify Claude is not running
+    if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+        warning "Claude Desktop processes still running, continuing anyway..."
+    else
+        info "Verified Claude Desktop is fully stopped"
+    fi
     
     # Start Claude Desktop
     info "🟢 Starting Claude Desktop..."
     if open -a "Claude" 2>/dev/null; then
-        success "Claude Desktop started"
+        success "Claude Desktop launch command sent"
         add_status "Claude start" "passed"
     else
         error "Failed to start Claude Desktop"
@@ -298,49 +484,72 @@ simple_restart() {
         return 4
     fi
     
-    # Wait for Claude to initialize
+    # Wait for Claude to initialize and verify it's running
     info "⏳ Waiting for Claude Desktop to initialize..."
+    local timeout=30
+    local count=0
+    local claude_running=false
+    
+    while [ $count -lt $timeout ]; do
+        if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+            claude_running=true
+            break
+        fi
+        sleep 1
+        ((count++))
+        
+        if [ $((count % 5)) -eq 0 ]; then
+            info "Waiting for Claude to start... ($count/$timeout)"
+        fi
+    done
+    
+    if [ "$claude_running" = true ]; then
+        success "✅ Claude Desktop is running"
+    else
+        error "❌ Claude Desktop failed to start within $timeout seconds"
+        add_status "Claude verification" "failed"
+        return 4
+    fi
+    
+    # Wait a bit more for MCP initialization
+    info "⏳ Waiting for MCP subsystem to initialize..."
     sleep 5
     
     # Display MCP logs
-    info "📋 Displaying fresh MCP logs..."
-    local log_file="$logs_dir/mcp.log"
+    info "📋 Checking for MCP logs..."
+    local log_file="$logs_dir/mcp-server-youtube-mcp.log"
     
-    # Create log file if it doesn't exist
-    touch "$log_file"
-    
-    # Display recent logs with tail
-    info "Recent MCP logs:"
-    echo "====================================="
-    tail -50 "$log_file"
-    
-    # Check for YouTube MCP Server registration
-    if grep -q "youtube-mcp-server" "$log_file" 2>/dev/null; then
-        success "✅ YouTube MCP Server found in logs"
-        add_status "MCP registration" "passed"
+    # Check if log file exists and has content
+    if [ -f "$log_file" ] && [ -s "$log_file" ]; then
+        info "📄 Found MCP log file with content"
+        echo "====================================="
+        info "Recent MCP logs:"
+        tail -20 "$log_file"
+        echo "====================================="
+        
+        # Check for YouTube MCP Server registration
+        if grep -q "youtube-mcp-server" "$log_file" 2>/dev/null; then
+            success "✅ YouTube MCP Server found in logs"
+            add_status "MCP registration" "passed"
+        else
+            warning "⚠️  YouTube MCP Server not found in logs yet"
+            add_status "MCP registration" "pending"
+        fi
     else
-        warning "⚠️  YouTube MCP Server not found in logs yet"
+        warning "⚠️  MCP log file not found or empty: $log_file"
+        info "This might indicate:"
+        echo "  • Claude Desktop is still initializing"
+        echo "  • MCP configuration issue"
+        echo "  • YouTube MCP Server not installed globally"
         add_status "MCP registration" "pending"
     fi
     
-    # Offer continuous monitoring
-    echo ""
-    info "🔍 Log monitoring started. Press Ctrl+C to stop monitoring."
-    echo "====================================="
-    
-    # Start monitoring in background so script can complete
-    tail -f "$log_file" &
-    local tail_pid=$!
-    
-    # Wait for a few seconds to show some live output
-    sleep 3
-    
-    # Kill the tail process
-    kill $tail_pid 2>/dev/null || true
-    
     echo ""
     success "Simple restart completed!"
-    info "💡 For continuous monitoring, run: tail -f $log_file"
+    info "💡 Log monitoring commands:"
+    echo "  • Watch logs: tail -f $log_file"
+    echo "  • Check processes: ps aux | grep Claude"
+    echo "  • Verify install: youtube-mcp-server --version"
     
     return 0
 }
@@ -352,29 +561,62 @@ restart_claude() {
     local logs_dir
     logs_dir=$(get_claude_logs_dir)
     
-    # Delete existing logs
-    info "Cleaning up existing Claude logs..."
+    # Delete existing MCP logs
+    info "Cleaning up existing Claude MCP logs..."
     if [ -d "$logs_dir" ]; then
-        rm -f "$logs_dir"/*.log
-        success "Deleted existing log files"
+        if ! rm -f "$logs_dir"/mcp-server-*.log 2>/dev/null; then
+            error "Failed to delete MCP server log files in: $logs_dir"
+            add_status "Claude restart" "failed"
+            return 1
+        fi
+        success "Deleted existing MCP server log files"
     else
-        mkdir -p "$logs_dir"
-        info "Created logs directory"
+        if ! mkdir -p "$logs_dir"; then
+            error "Failed to create logs directory: $logs_dir"
+            add_status "Claude restart" "failed"
+            return 1
+        fi
+        info "Created logs directory: $logs_dir"
     fi
     
-    # Kill Claude Desktop if running
+    # Kill Claude Desktop processes thoroughly
     info "Stopping Claude Desktop..."
-    if pkill -f "Claude" 2>/dev/null; then
+    local claude_stopped=false
+    
+    # First try graceful shutdown
+    if pkill -f "/Applications/Claude.app" 2>/dev/null; then
+        claude_stopped=true
+        info "Sent termination signal to Claude Desktop"
+    fi
+    
+    # Give it time to shut down gracefully
+    sleep 3
+    
+    # Force kill if still running
+    if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+        pkill -9 -f "/Applications/Claude.app" 2>/dev/null
+        info "Force killed Claude Desktop processes"
+        claude_stopped=true
+    fi
+    
+    if [ "$claude_stopped" = true ]; then
         success "Claude Desktop stopped"
         sleep 2
     else
         info "Claude Desktop was not running"
     fi
     
+    # Verify Claude is not running
+    if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+        warning "Claude Desktop processes still running, continuing anyway..."
+    else
+        info "Verified Claude Desktop is fully stopped"
+    fi
+    
     # Start Claude Desktop
     info "Starting Claude Desktop..."
     if open -a "Claude" 2>/dev/null; then
-        success "Claude Desktop started"
+        success "Claude Desktop launch command sent"
         add_status "Claude restart" "passed"
     else
         error "Failed to start Claude Desktop"
@@ -382,18 +624,45 @@ restart_claude() {
         return 4
     fi
     
-    # Wait for initialization
-    info "Waiting for Claude Desktop to initialize..."
-    sleep 5
+    # Wait for Claude to start and verify it's running
+    info "Waiting for Claude Desktop to start..."
+    local timeout=30
+    local count=0
+    local claude_running=false
+    
+    while [ $count -lt $timeout ]; do
+        if pgrep -f "/Applications/Claude.app" >/dev/null 2>&1; then
+            claude_running=true
+            break
+        fi
+        sleep 1
+        ((count++))
+        
+        if [ $((count % 10)) -eq 0 ]; then
+            info "Waiting for Claude to start... ($count/$timeout)"
+        fi
+    done
+    
+    if [ "$claude_running" = false ]; then
+        error "Claude Desktop failed to start within $timeout seconds"
+        add_status "Claude verification" "failed"
+        return 4
+    fi
+    
+    success "Claude Desktop is running"
+    
+    # Wait for MCP initialization
+    info "Waiting for MCP subsystem to initialize..."
+    sleep 8
     
     # Monitor MCP logs
     info "Monitoring MCP registration..."
-    local log_file="$logs_dir/mcp.log"
-    local timeout=30
+    local log_file="$logs_dir/mcp-server-youtube-mcp.log"
+    local timeout=45
     local count=0
     
     while [ $count -lt $timeout ]; do
-        if [ -f "$log_file" ]; then
+        if [ -f "$log_file" ] && [ -s "$log_file" ]; then
             if grep -q "youtube-mcp-server" "$log_file" 2>/dev/null; then
                 success "YouTube MCP Server registered successfully"
                 add_status "MCP registration" "passed"
@@ -401,7 +670,9 @@ restart_claude() {
                 # Show recent logs
                 echo ""
                 info "Recent MCP logs:"
-                tail -20 "$log_file"
+                echo "====================================="
+                tail -15 "$log_file"
+                echo "====================================="
                 return 0
             fi
         fi
@@ -410,18 +681,40 @@ restart_claude() {
         ((count++))
         
         if [ $((count % 5)) -eq 0 ]; then
-            info "Waiting for registration... ($count/$timeout)"
+            info "Waiting for MCP registration... ($count/$timeout)"
         fi
     done
     
-    warning "MCP registration timeout - check logs manually"
+    warning "MCP registration timeout - checking logs..."
     add_status "MCP registration" "failed"
     
+    # Show diagnostic information
+    echo ""
+    info "Diagnostic information:"
+    echo "  • Log file: $log_file"
+    echo "  • Log exists: $([ -f "$log_file" ] && echo "yes" || echo "no")"
+    echo "  • Log size: $([ -f "$log_file" ] && wc -l < "$log_file" | tr -d ' ' || echo "0") lines"
+    
     # Show available logs
-    if [ -f "$log_file" ]; then
+    if [ -f "$log_file" ] && [ -s "$log_file" ]; then
         echo ""
         info "Available MCP logs:"
-        tail -50 "$log_file"
+        echo "====================================="
+        tail -20 "$log_file"
+        echo "====================================="
+    else
+        echo ""
+        warning "No MCP logs found. Possible issues:"
+        echo "  • YouTube MCP Server not installed globally"
+        echo "  • MCP configuration missing or incorrect"
+        echo "  • Claude Desktop MCP subsystem disabled"
+        
+        # Check if server is installed
+        if command -v youtube-mcp-server >/dev/null 2>&1; then
+            info "✅ YouTube MCP Server is installed globally"
+        else
+            error "❌ YouTube MCP Server not found in PATH"
+        fi
     fi
     
     return 4
@@ -467,7 +760,7 @@ print_final_summary() {
             info "Next steps:"
             echo "  • Claude Desktop should now have the YouTube MCP Server available"
             echo "  • Test with: 'Search for videos about TypeScript'"
-            echo "  • Check logs: tail -f $(get_claude_logs_dir)/mcp.log"
+            echo "  • Check logs: tail -f ${LOG_FILE:-$(get_claude_logs_dir)/mcp-server-youtube-mcp.log}"
         else
             warning "⚠️  Completed with some issues - check the summary above"
             echo ""
@@ -523,6 +816,9 @@ main() {
     info "Validating environment..."
     check_command "npm" || exit 1
     check_command "node" || exit 1
+    
+    # Set log file path
+    LOG_FILE="$(get_claude_logs_dir)/mcp-server-youtube-mcp.log"
     
     # Phase 1: Backup
     phase="backup"

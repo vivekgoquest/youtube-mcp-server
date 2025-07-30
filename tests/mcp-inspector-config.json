@@ -2,9 +2,9 @@
   "mcpServers": {
     "youtube": {
       "command": "node",
-      "args": ["./dist/src/index.js"],
+      "args": ["./dist/index.js"],
       "env": {
-        "YOUTUBE_API_KEY": "AIzaSyAqDuM3GcsKivan0IQ1I7_Q3Mx5VNZ9QmU",
+        "YOUTUBE_API_KEY": "YOUR_YOUTUBE_API_KEY_HERE",
         "DEBUG_CONSOLE": "true",
         "NODE_ENV": "development"
       }

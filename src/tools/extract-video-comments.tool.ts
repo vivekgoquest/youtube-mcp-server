@@ -1,6 +1,7 @@
-import { ToolMetadata, ToolRunner } from '../interfaces/tool.js';
-import { YouTubeClient } from '../youtube-client.js';
-import { ToolResponse } from '../types.js';
+import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import { YouTubeClient } from "../youtube-client.js";
+import { ToolResponse } from "../types.js";
+import { ErrorHandler } from "../utils/error-handler.js";
 
 interface ExtractCommentsOptions {
   videoIds: string[];
@@ -44,122 +45,122 @@ interface CommentAnalysis {
 }
 
 export const metadata: ToolMetadata = {
-  name: 'extract_video_comments',
-  description: 'Extract and analyze comments from YouTube videos with enhanced capabilities including replies and author details. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, reply threads, and optional sentiment analysis. Perfect for comprehensive engagement analysis, author profiling, and thread analysis.',
+  name: "extract_video_comments",
+  description:
+    "Extract and analyze comments from YouTube videos with enhanced capabilities including replies and author details. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, reply threads, and optional sentiment analysis. Perfect for comprehensive engagement analysis, author profiling, and thread analysis.",
+  quotaCost: 1,
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       videoIds: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'string'
+          type: "string",
         },
-        description: 'Array of YouTube video IDs'
+        description: "Array of YouTube video IDs",
       },
       maxCommentsPerVideo: {
-        type: 'integer',
-        description: 'Maximum comments to extract per video (default: 100)',
+        type: "integer",
+        description: "Maximum comments to extract per video (default: 100)",
         minimum: 1,
         maximum: 500,
-        default: 100
+        default: 100,
       },
       includeSentiment: {
-        type: 'boolean',
-        description: 'Include basic sentiment analysis (default: false)',
-        default: false
+        type: "boolean",
+        description: "Include basic sentiment analysis (default: false)",
+        default: false,
       },
       includeReplies: {
-        type: 'boolean',
-        description: 'Include comment thread replies (default: false)',
-        default: false
+        type: "boolean",
+        description: "Include comment thread replies (default: false)",
+        default: false,
       },
       includeAuthorDetails: {
-        type: 'boolean',
-        description: 'Include author information (default: false)',
-        default: false
+        type: "boolean",
+        description: "Include author information (default: false)",
+        default: false,
       },
       maxRepliesPerComment: {
-        type: 'integer',
-        description: 'Maximum replies to extract per comment (default: 10)',
+        type: "integer",
+        description: "Maximum replies to extract per comment (default: 10)",
         minimum: 1,
         maximum: 50,
-        default: 10
-      }
+        default: 10,
+      },
     },
-    required: ['videoIds']
+    required: ["videoIds"],
   },
-  quotaCost: 1
 };
 
-export default class ExtractVideoCommentsTool implements ToolRunner<ExtractCommentsOptions, CommentAnalysis[]> {
+export default class ExtractVideoCommentsTool
+  implements ToolRunner<ExtractCommentsOptions, CommentAnalysis[]>
+{
   constructor(private client: YouTubeClient) {}
 
-  async run(options: ExtractCommentsOptions): Promise<ToolResponse<CommentAnalysis[]>> {
+  async run(
+    options: ExtractCommentsOptions,
+  ): Promise<ToolResponse<CommentAnalysis[]>> {
+    const startTime = Date.now();
     try {
-      const startTime = Date.now();
       const maxCommentsPerVideo = options.maxCommentsPerVideo || 100;
       const commentAnalyses: CommentAnalysis[] = [];
       let totalQuotaUsed = 0;
 
       for (const videoId of options.videoIds) {
-        try {
-          const commentsData = await this.getVideoComments(
-            videoId, 
-            maxCommentsPerVideo,
-            options.includeReplies || false,
+        const commentsData = await this.getVideoComments(
+          videoId,
+          maxCommentsPerVideo,
+          options.includeReplies || false,
+          options.includeAuthorDetails || false,
+          options.maxRepliesPerComment || 10,
+        );
+
+        let analysis: CommentAnalysis;
+
+        if (options.includeAuthorDetails || options.includeReplies) {
+          // Extract detailed comment data
+          const detailedComments = this.extractDetailedComments(
+            commentsData.comments,
             options.includeAuthorDetails || false,
-            options.maxRepliesPerComment || 10
+            options.includeReplies || false,
           );
-          
-          let analysis: CommentAnalysis;
-          
-          if (options.includeAuthorDetails || options.includeReplies) {
-            // Extract detailed comment data
-            const detailedComments = this.extractDetailedComments(
-              commentsData.comments, 
-              options.includeAuthorDetails || false, 
-              options.includeReplies || false
-            );
-            
-            analysis = {
-              videoId,
-              commentCount: commentsData.totalComments,
-              comments: detailedComments
-            };
-            
-            // Add engagement metrics
-            if (detailedComments.length > 0) {
-              analysis.engagementMetrics = this.calculateEngagementMetrics(detailedComments);
-            }
-          } else {
-            // Simple comment text extraction
-            const commentTexts = commentsData.comments.map(c => 
-              c.snippet?.topLevelComment?.snippet?.textDisplay || ''
-            );
-            
-            analysis = {
-              videoId,
-              commentCount: commentsData.totalComments,
-              comments: commentTexts
-            };
-          }
 
-          // Add basic sentiment analysis if requested
-          if (options.includeSentiment) {
-            const texts = typeof analysis.comments[0] === 'string'
-              ? analysis.comments as string[]
-              : (analysis.comments as CommentWithDetails[]).map(c => c.text);
-            analysis.sentiment = this.analyzeSentiment(texts);
-          }
+          analysis = {
+            videoId,
+            commentCount: commentsData.totalComments,
+            comments: detailedComments,
+          };
 
-          commentAnalyses.push(analysis);
-          totalQuotaUsed += commentsData.quotaUsed;
-        } catch (error) {
-          // Comment extraction failed - continue without comments
-          if (process.env.DEBUG_CONSOLE === 'true') {
-            console.error(`Failed to get comments for video ${videoId}:`, error);
+          // Add engagement metrics
+          if (detailedComments.length > 0) {
+            analysis.engagementMetrics =
+              this.calculateEngagementMetrics(detailedComments);
           }
+        } else {
+          // Simple comment text extraction
+          const commentTexts = commentsData.comments.map(
+            (c) => c.snippet?.topLevelComment?.snippet?.textDisplay || "",
+          );
+
+          analysis = {
+            videoId,
+            commentCount: commentsData.totalComments,
+            comments: commentTexts,
+          };
         }
+
+        // Add basic sentiment analysis if requested
+        if (options.includeSentiment) {
+          const texts =
+            typeof analysis.comments[0] === "string"
+              ? (analysis.comments as string[])
+              : (analysis.comments as CommentWithDetails[]).map((c) => c.text);
+          analysis.sentiment = this.analyzeSentiment(texts);
+        }
+
+        commentAnalyses.push(analysis);
+        totalQuotaUsed += commentsData.quotaUsed;
       }
 
       return {
@@ -168,43 +169,39 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
         metadata: {
           quotaUsed: totalQuotaUsed,
           requestTime: Date.now() - startTime,
-          source: 'youtube-comments-analysis'
-        }
+          source: "youtube-comments-analysis",
+        },
       };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        metadata: {
-          quotaUsed: 0,
-          requestTime: 0,
-          source: 'youtube-comments-analysis'
-        }
-      };
+    } catch (error) {
+      return ErrorHandler.handleToolError<CommentAnalysis[]>(error, {
+        quotaUsed: 0,
+        startTime,
+        source: "youtube-comments-analysis",
+      });
     }
   }
 
   private async getVideoComments(
-    videoId: string, 
+    videoId: string,
     maxResults: number,
     includeReplies: boolean,
     includeAuthorDetails: boolean,
-    maxRepliesPerComment: number
-  ): Promise<{ comments: any[], totalComments: number, quotaUsed: number }> {
+    maxRepliesPerComment: number,
+  ): Promise<{ comments: any[]; totalComments: number; quotaUsed: number }> {
     const comments: any[] = [];
     let pageToken: string | undefined;
     let quotaUsed = 0;
 
     // Build dynamic parts array
-    const parts = ['snippet'];
-    if (includeReplies) parts.push('replies');
+    const parts = ["snippet"];
+    if (includeReplies) parts.push("replies");
 
     do {
-      const response = await this.client.makeRawRequest('/commentThreads', {
-        part: parts.join(','),
+      const response = await this.client.makeRawRequest("/commentThreads", {
+        part: parts.join(","),
         videoId,
         maxResults: Math.min(100, maxResults - comments.length),
-        pageToken
+        pageToken,
       });
 
       comments.push(...(response.items || []));
@@ -215,56 +212,58 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
     return {
       comments,
       totalComments: comments.length,
-      quotaUsed
+      quotaUsed,
     };
   }
 
   private extractDetailedComments(
     comments: any[],
     includeAuthorDetails: boolean,
-    includeReplies: boolean
+    includeReplies: boolean,
   ): CommentWithDetails[] {
-    return comments.map(commentThread => {
+    return comments.map((commentThread) => {
       const topLevelComment = commentThread.snippet?.topLevelComment;
       const snippet = topLevelComment?.snippet;
-      
+
       const commentDetails: CommentWithDetails = {
-        text: snippet?.textDisplay || '',
+        text: snippet?.textDisplay || "",
         likeCount: snippet?.likeCount || 0,
-        publishedAt: snippet?.publishedAt || ''
+        publishedAt: snippet?.publishedAt || "",
       };
 
       // Add author details if requested
       if (includeAuthorDetails && snippet) {
         commentDetails.authorDetails = {
-          displayName: snippet.authorDisplayName || '',
-          channelId: snippet.authorChannelId?.value || '',
-          channelUrl: snippet.authorChannelUrl || '',
-          profileImageUrl: snippet.authorProfileImageUrl || ''
+          displayName: snippet.authorDisplayName || "",
+          channelId: snippet.authorChannelId?.value || "",
+          channelUrl: snippet.authorChannelUrl || "",
+          profileImageUrl: snippet.authorProfileImageUrl || "",
         };
       }
 
       // Add replies if requested and available
       if (includeReplies && commentThread.replies?.comments) {
-        commentDetails.replies = commentThread.replies.comments.map((reply: any) => {
-          const replySnippet = reply.snippet;
-          const replyDetails: CommentWithDetails = {
-            text: replySnippet?.textDisplay || '',
-            likeCount: replySnippet?.likeCount || 0,
-            publishedAt: replySnippet?.publishedAt || ''
-          };
-
-          if (includeAuthorDetails && replySnippet) {
-            replyDetails.authorDetails = {
-              displayName: replySnippet.authorDisplayName || '',
-              channelId: replySnippet.authorChannelId?.value || '',
-              channelUrl: replySnippet.authorChannelUrl || '',
-              profileImageUrl: replySnippet.authorProfileImageUrl || ''
+        commentDetails.replies = commentThread.replies.comments.map(
+          (reply: any) => {
+            const replySnippet = reply.snippet;
+            const replyDetails: CommentWithDetails = {
+              text: replySnippet?.textDisplay || "",
+              likeCount: replySnippet?.likeCount || 0,
+              publishedAt: replySnippet?.publishedAt || "",
             };
-          }
 
-          return replyDetails;
-        });
+            if (includeAuthorDetails && replySnippet) {
+              replyDetails.authorDetails = {
+                displayName: replySnippet.authorDisplayName || "",
+                channelId: replySnippet.authorChannelId?.value || "",
+                channelUrl: replySnippet.authorChannelUrl || "",
+                profileImageUrl: replySnippet.authorProfileImageUrl || "",
+              };
+            }
+
+            return replyDetails;
+          },
+        );
       }
 
       return commentDetails;
@@ -280,18 +279,19 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
     let totalLikes = 0;
     let totalReplies = 0;
 
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       totalLikes += comment.likeCount;
       if (comment.replies) {
         totalReplies += comment.replies.length;
-        comment.replies.forEach(reply => {
+        comment.replies.forEach((reply) => {
           totalLikes += reply.likeCount;
         });
       }
     });
 
-    const averageLikesPerComment = comments.length > 0 ? totalLikes / comments.length : 0;
-    
+    const averageLikesPerComment =
+      comments.length > 0 ? totalLikes / comments.length : 0;
+
     // Get top 5 comments by likes
     const topCommentsByLikes = [...comments]
       .sort((a, b) => b.likeCount - a.likeCount)
@@ -301,14 +301,36 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
       totalLikes,
       totalReplies,
       averageLikesPerComment,
-      topCommentsByLikes
+      topCommentsByLikes,
     };
   }
 
-  private analyzeSentiment(comments: string[]): { positive: number; negative: number; neutral: number } {
+  private analyzeSentiment(comments: string[]): {
+    positive: number;
+    negative: number;
+    neutral: number;
+  } {
     // Basic sentiment analysis using keyword matching
-    const positiveWords = ['good', 'great', 'awesome', 'amazing', 'love', 'excellent', 'fantastic', 'wonderful'];
-    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'horrible', 'worst', 'stupid', 'sucks'];
+    const positiveWords = [
+      "good",
+      "great",
+      "awesome",
+      "amazing",
+      "love",
+      "excellent",
+      "fantastic",
+      "wonderful",
+    ];
+    const negativeWords = [
+      "bad",
+      "terrible",
+      "awful",
+      "hate",
+      "horrible",
+      "worst",
+      "stupid",
+      "sucks",
+    ];
 
     let positive = 0;
     let negative = 0;
@@ -316,8 +338,12 @@ export default class ExtractVideoCommentsTool implements ToolRunner<ExtractComme
 
     for (const comment of comments) {
       const lowerComment = comment.toLowerCase();
-      const hasPositive = positiveWords.some(word => lowerComment.includes(word));
-      const hasNegative = negativeWords.some(word => lowerComment.includes(word));
+      const hasPositive = positiveWords.some((word) =>
+        lowerComment.includes(word),
+      );
+      const hasNegative = negativeWords.some((word) =>
+        lowerComment.includes(word),
+      );
 
       if (hasPositive && !hasNegative) {
         positive++;

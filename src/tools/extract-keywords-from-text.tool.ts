@@ -1,7 +1,8 @@
-import { ToolMetadata, ToolRunner } from '../interfaces/tool.js';
-import { YouTubeClient } from '../youtube-client.js';
-import { ToolResponse, KeywordData } from '../types.js';
-import { TextProcessor } from '../utils/text-processing.js';
+import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import { YouTubeClient } from "../youtube-client.js";
+import { ToolResponse, KeywordData } from "../types.js";
+import { TextProcessor } from "../utils/text-processing.js";
+import { ErrorHandler } from "../utils/error-handler.js";
 
 interface ExtractKeywordsFromTextOptions {
   text: string;
@@ -12,63 +13,68 @@ interface ExtractKeywordsFromTextOptions {
 }
 
 export const metadata: ToolMetadata = {
-  name: 'extract_keywords_from_text',
-  description: 'Extract keywords from ANY text using advanced NLP - perfect for scripts, competitor descriptions, or content ideas. Finds single words AND multi-word phrases (up to 5 words). Use this to: analyze competitor video descriptions, process blog posts for video ideas, extract keywords from transcripts. Returns keywords ranked by importance with frequency counts. Handles text up to 50,000 words. SMART: filters out stop words, finds semantic phrases, identifies trending terms.',
+  name: "extract_keywords_from_text",
+  description:
+    "Extract keywords from ANY text using advanced NLP - perfect for scripts, competitor descriptions, or content ideas. Finds single words AND multi-word phrases (up to 5 words). Use this to: analyze competitor video descriptions, process blog posts for video ideas, extract keywords from transcripts. Returns keywords ranked by importance with frequency counts. Handles text up to 50,000 words. SMART: filters out stop words, finds semantic phrases, identifies trending terms.",
+  quotaCost: 0,
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       text: {
-        type: 'string',
-        description: 'Text content to extract keywords from'
+        type: "string",
+        description: "Text content to extract keywords from",
       },
       minWordLength: {
-        type: 'integer',
-        description: 'Minimum word length for keywords (default: 3)',
+        type: "integer",
+        description: "Minimum word length for keywords (default: 3)",
         minimum: 1,
         maximum: 10,
-        default: 3
+        default: 3,
       },
       maxKeywords: {
-        type: 'integer',
-        description: 'Maximum number of keywords to return (default: 50)',
+        type: "integer",
+        description: "Maximum number of keywords to return (default: 50)",
         minimum: 1,
         maximum: 200,
-        default: 50
+        default: 50,
       },
       includeNGrams: {
-        type: 'boolean',
-        description: 'Include multi-word phrases (default: true)',
-        default: true
+        type: "boolean",
+        description: "Include multi-word phrases (default: true)",
+        default: true,
       },
       nGramSize: {
-        type: 'integer',
-        description: 'Maximum n-gram size for phrases (default: 3)',
+        type: "integer",
+        description: "Maximum n-gram size for phrases (default: 3)",
         minimum: 2,
         maximum: 5,
-        default: 3
-      }
+        default: 3,
+      },
     },
-    required: ['text']
+    required: ["text"],
   },
-  quotaCost: 0
 };
 
-export default class ExtractKeywordsFromTextTool implements ToolRunner<ExtractKeywordsFromTextOptions, KeywordData[]> {
+export default class ExtractKeywordsFromTextTool
+  implements ToolRunner<ExtractKeywordsFromTextOptions, KeywordData[]>
+{
   constructor(private client: YouTubeClient) {}
 
-  async run(options: ExtractKeywordsFromTextOptions): Promise<ToolResponse<KeywordData[]>> {
+  async run(
+    options: ExtractKeywordsFromTextOptions,
+  ): Promise<ToolResponse<KeywordData[]>> {
     const startTime = Date.now();
-    
+
     try {
-      if (!options.text || options.text.trim() === '') {
+      if (!options.text || options.text.trim() === "") {
         return {
           success: false,
-          error: 'Text content is required',
+          error: "Text content is required",
           metadata: {
             quotaUsed: 0,
             requestTime: Date.now() - startTime,
-            source: 'keyword-extraction-text'
-          }
+            source: "keyword-extraction-text",
+          },
         };
       }
 
@@ -77,26 +83,34 @@ export default class ExtractKeywordsFromTextTool implements ToolRunner<ExtractKe
         maxKeywords: options.maxKeywords || 50,
         includeNGrams: options.includeNGrams !== false,
         nGramSize: options.nGramSize || 3,
-        sources: ['title', 'description'] as ('title' | 'description' | 'tags' | 'comments')[]
+        sources: ["title", "description"] as (
+          | "title"
+          | "description"
+          | "tags"
+          | "comments"
+        )[],
       };
 
       // Extract keywords using TextProcessor
-      const extractedKeywords = TextProcessor.extractKeywords(options.text, extractionOptions);
-      
+      const extractedKeywords = TextProcessor.extractKeywords(
+        options.text,
+        extractionOptions,
+      );
+
       // Convert to KeywordData format
-      const keywords: KeywordData[] = extractedKeywords.map(keyword => ({
+      const keywords: KeywordData[] = extractedKeywords.map((keyword) => ({
         keyword,
         frequency: 1,
-        sources: ['title'], // Treating input text as title content
+        sources: ["title"], // Treating input text as title content
         relevance: 1.0,
         confidence: 0.8,
         relatedTerms: [],
-        contexts: [options.text.substring(0, 100)]
+        contexts: [options.text.substring(0, 100)],
       }));
 
       // Calculate frequency for duplicate keywords
       const keywordMap = new Map<string, KeywordData>();
-      keywords.forEach(kw => {
+      keywords.forEach((kw) => {
         const key = kw.keyword.toLowerCase();
         if (keywordMap.has(key)) {
           const existing = keywordMap.get(key)!;
@@ -119,19 +133,15 @@ export default class ExtractKeywordsFromTextTool implements ToolRunner<ExtractKe
         metadata: {
           quotaUsed: 0, // No API calls for text processing
           requestTime: Date.now() - startTime,
-          source: 'keyword-extraction-text'
-        }
+          source: "keyword-extraction-text",
+        },
       };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        metadata: {
-          quotaUsed: 0,
-          requestTime: Date.now() - startTime,
-          source: 'keyword-extraction-text'
-        }
-      };
+    } catch (error) {
+      return ErrorHandler.handleToolError<KeywordData[]>(error, {
+        quotaUsed: 0,
+        startTime,
+        source: "keyword-extraction-text",
+      });
     }
   }
 }

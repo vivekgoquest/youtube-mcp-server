@@ -5,6 +5,7 @@ This guide helps you configure Cline (formerly Claude Dev) to use the YouTube MC
 ## Overview
 
 The YouTube MCP Server integration provides Cline with powerful YouTube research tools including:
+
 - Video search and analysis
 - Channel analytics
 - Keyword research
@@ -50,11 +51,11 @@ This method uses the globally installed package command directly.
 4. **Navigate to "MCP Servers" section**
 5. **Add new server with these settings**:
 
-| Field | Value |
-|-------|-------|
-| **Server Name** | `youtube-mcp` |
-| **Command** | `youtube-mcp-server` |
-| **Args** | `[]` (empty array) |
+| Field                     | Value                                |
+| ------------------------- | ------------------------------------ |
+| **Server Name**           | `youtube-mcp`                        |
+| **Command**               | `youtube-mcp-server`                 |
+| **Args**                  | `[]` (empty array)                   |
 | **Environment Variables** | `YOUTUBE_API_KEY: your_api_key_here` |
 
 ### Option 2: Node Direct Execution
@@ -63,14 +64,15 @@ This method explicitly calls Node.js with the package path.
 
 #### Configuration
 
-| Field | Value |
-|-------|-------|
-| **Server Name** | `youtube-mcp` |
-| **Command** | `node` |
-| **Args** | `["/path/to/youtube-mcp-server"]` |
+| Field                     | Value                                |
+| ------------------------- | ------------------------------------ |
+| **Server Name**           | `youtube-mcp`                        |
+| **Command**               | `node`                               |
+| **Args**                  | `["/path/to/youtube-mcp-server"]`    |
 | **Environment Variables** | `YOUTUBE_API_KEY: your_api_key_here` |
 
 To find the path:
+
 ```bash
 which youtube-mcp-server
 # Use the output path in the Args field
@@ -102,44 +104,7 @@ The Cline MCP settings file is typically located at:
 - **Windows**: `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
 - **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
 
-## YouTube API Key Setup
-
-### Getting Your API Key
-
-1. **Go to Google Cloud Console**: [console.developers.google.com](https://console.developers.google.com/)
-
-2. **Create or Select Project**:
-   - Create a new project or select existing one
-   - Enable billing (required for API usage)
-
-3. **Enable YouTube Data API**:
-   - Navigate to "APIs & Services" → "Library"
-   - Search for "YouTube Data API v3"
-   - Click "Enable"
-
-4. **Create Credentials**:
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "API Key"
-   - Copy the generated API key
-
-5. **Configure API Key** (Optional but Recommended):
-   - Click on the API key to edit
-   - Add application restrictions (HTTP referrers, IP addresses)
-   - Restrict to YouTube Data API v3 only
-
-### Setting Environment Variable
-
-#### Option A: In Cline Settings (Recommended)
-Add the API key directly in the Cline MCP server configuration as shown above.
-
-#### Option B: System Environment Variable
-```bash
-# Add to your shell profile (.bashrc, .zshrc, etc.)
-export YOUTUBE_API_KEY="your_api_key_here"
-
-# Or set temporarily
-YOUTUBE_API_KEY="your_api_key_here" code
-```
+Refer to the [YouTube API Key Setup Guide](./youtube-api-key.md) for detailed instructions on how to get and configure your API key.
 
 ## Testing Configuration
 
@@ -157,17 +122,20 @@ YOUTUBE_API_KEY="your_api_key_here" youtube-mcp-server
 1. **Open VS Code** with Cline configured
 2. **Start a new Cline conversation**
 3. **Try a simple YouTube search**:
+
    ```
    Search for videos about "machine learning" using the YouTube MCP server
    ```
 
 4. **Verify tool availability**:
+
    ```
    List all available YouTube MCP tools
    ```
 
 Expected tools include:
-- `search_videos`
+
+- `unified_search`
 - `search_channels`
 - `get_video_details`
 - `analyze_competitor`
@@ -192,7 +160,7 @@ For different API keys or configurations:
       }
     },
     "youtube-mcp-prod": {
-      "command": "youtube-mcp-server", 
+      "command": "youtube-mcp-server",
       "args": [],
       "env": {
         "YOUTUBE_API_KEY": "prod_api_key_here",
@@ -228,6 +196,7 @@ Enable debug logging for troubleshooting:
 ### Common Issues
 
 #### "youtube-mcp-server not found"
+
 ```bash
 # Reinstall globally
 npm uninstall -g youtube-mcp-server
@@ -238,18 +207,22 @@ npm list -g youtube-mcp-server
 ```
 
 #### "Invalid API Key" Errors
+
 - Verify API key is correct and not expired
 - Check YouTube Data API v3 is enabled in Google Cloud Console
 - Ensure API key has proper permissions and restrictions
 
 #### "Permission Denied" Errors
+
 - Check file permissions on global npm packages
 - Try installing with appropriate permissions:
+
   ```bash
   sudo npm install -g youtube-mcp-server
   ```
 
 #### "Connection Failed" in Cline
+
 - Verify server starts successfully with API key
 - Check Cline MCP settings format is correct
 - Restart VS Code after configuration changes
@@ -273,6 +246,7 @@ ls -la $(npm root -g)/youtube-mcp-server/bin/
 ### Log Analysis
 
 Check Cline logs for MCP server issues:
+
 - **VS Code Developer Tools**: `Help` → `Toggle Developer Tools` → `Console`
 - **Cline Output Panel**: Look for MCP connection messages
 - **Server Logs**: Check for API quota/authentication errors
@@ -280,18 +254,21 @@ Check Cline logs for MCP server issues:
 ## Best Practices
 
 ### Security
+
 - **Never commit API keys** to version control
 - **Use environment variables** instead of hardcoded keys
 - **Rotate API keys periodically**
 - **Monitor API usage** in Google Cloud Console
 
 ### Performance
+
 - **Set reasonable rate limits** if processing large datasets
 - **Monitor API quotas** to avoid service interruptions
 - **Cache results** when possible for repeated queries
 - **Use batch operations** for multiple video/channel analyses
 
 ### Organization
+
 - **Use descriptive server names** for multiple configurations
 - **Document custom configurations** for team sharing
 - **Keep backup** of working configurations
@@ -302,24 +279,38 @@ Check Cline logs for MCP server issues:
 Once configured, Cline will have access to these YouTube research tools:
 
 ### Core Search Tools
-- `search_videos` - Search YouTube videos with filters
+
+- `unified_search` - Search YouTube for videos, channels, or playlists with optional enrichment and advanced filtering. Example with enrichment:
+  ```json
+  {
+    "query": "machine learning",
+    "maxResults": 5,
+    "enrichParts": {
+      "video": ["snippet", "statistics", "contentDetails"],
+      "channel": ["snippet", "statistics"]
+    }
+  }
+  ```
 - `search_channels` - Find and analyze channels
 - `search_playlists` - Discover curated playlists
-- `advanced_search` - Power search with advanced filters
+- `get_trending_videos` - Get current trending videos by region
 
 ### Content Analysis
+
 - `get_video_details` - Comprehensive video metadata
 - `get_channel_details` - Channel statistics and branding
 - `analyze_viral_videos` - Study viral content patterns
 - `extract_video_comments` - Analyze audience engagement
 
 ### Research & Strategy
+
 - `analyze_competitor` - Deep competitor analysis
 - `find_content_gaps` - Identify untapped opportunities
 - `keyword_research_workflow` - Complete keyword analysis
 - `analyze_keyword_opportunities` - Score keyword difficulty
 
 ### Network & Discovery
+
 - `discover_channel_network` - Map channel relationships
 - `get_trending_videos` - Current trending content
 - `analyze_channel_videos` - Channel content analysis

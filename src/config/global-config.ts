@@ -1,58 +1,27 @@
-import { GlobalConfig } from '../types.js';
+import { GlobalConfig } from "../types.js";
+import {
+  DEFAULT_VIDEO_PARTS,
+  DEFAULT_CHANNEL_PARTS,
+  DEFAULT_PLAYLIST_PARTS,
+} from "./constants.js";
 
 /**
  * Global configuration for the YouTube MCP Server
  * Controls default behavior across all tools
  */
 export const globalConfig: GlobalConfig = {
-  // Default enrichment behavior for search tools
-  defaultEnrichment: false,
-  
   // Default parts to include in video requests
-  defaultVideoParts: ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails'],
-  
+  // Note: For new code, use DEFAULT_VIDEO_PARTS from constants.ts directly
+  defaultVideoParts: DEFAULT_VIDEO_PARTS,
+
   // Default parts to include in channel requests
-  defaultChannelParts: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails'],
-  
+  // Note: For new code, use DEFAULT_CHANNEL_PARTS from constants.ts directly
+  defaultChannelParts: DEFAULT_CHANNEL_PARTS,
+
   // Default parts to include in playlist requests
-  defaultPlaylistParts: ['snippet', 'contentDetails', 'status'],
-  
-  // Enable graceful degradation when API calls fail
-  enableGracefulDegradation: true,
-  
+  // Note: For new code, use DEFAULT_PLAYLIST_PARTS from constants.ts directly
+  defaultPlaylistParts: DEFAULT_PLAYLIST_PARTS,
+
   // Maximum items per batch for enrichment calls
   maxBatchSize: 50,
-  
-  // Maximum concurrent API calls for enrichment
-  concurrencyLimit: 3
 };
-
-/**
- * Get the current global configuration
- */
-export function getGlobalConfig(): GlobalConfig {
-  return globalConfig;
-}
-
-/**
- * Update the global configuration
- * @param updates Partial configuration updates
- */
-export function updateGlobalConfig(updates: Partial<GlobalConfig>): void {
-  Object.assign(globalConfig, updates);
-}
-
-/**
- * Reset global configuration to defaults
- */
-export function resetGlobalConfig(): void {
-  Object.assign(globalConfig, {
-    defaultEnrichment: false,
-    defaultVideoParts: ['snippet', 'statistics', 'contentDetails', 'status', 'topicDetails'],
-    defaultChannelParts: ['snippet', 'statistics', 'contentDetails', 'brandingSettings', 'topicDetails'],
-    defaultPlaylistParts: ['snippet', 'contentDetails', 'status'],
-    enableGracefulDegradation: true,
-    maxBatchSize: 50,
-    concurrencyLimit: 3
-  });
-}

@@ -177,101 +177,28 @@ export interface YouTubeApiError {
 }
 
 // Channel Analysis Types
-export interface ChannelDetails {
-  id: string;
-  snippet: {
-    title: string;
-    description: string;
-    publishedAt: string;
-    country?: string;
-    customUrl?: string;
-  };
-  statistics: {
-    subscriberCount: string;
-    viewCount: string;
-    videoCount: string;
-  };
-  contentDetails?: {
-    relatedPlaylists?: {
-      uploads?: string;
-    };
-  };
-}
-
-export interface VideoDetails {
-  id: string;
-  snippet: {
-    title: string;
-    description: string;
-    channelId: string;
-    channelTitle: string;
-    publishedAt: string;
-    tags?: string[];
-  };
-  statistics: {
-    viewCount: string;
-    likeCount?: string;
-    commentCount?: string;
-  };
-  contentDetails: {
-    duration: string;
-    definition: string;
-  };
-}
-
-
-export interface PlaylistItem {
-  id: string;
-  snippet: {
-    title: string;
-    description: string;
-    resourceId: {
-      videoId: string;
-    };
-  };
-  contentDetails: {
-    videoId: string;
-  };
-}
-
 // Export data formats
-export interface ExportOptions {
-  format: 'json' | 'csv';
-  fields?: string[];
-  filename?: string;
-}
-
-export interface AnalysisReport {
-  channelId: string;
-  channelName: string;
-  generatedAt: string;
-  videoAnalysis?: any[];
-  commentAnalysis?: any[];
-  networkAnalysis?: any[];
-  summary?: {
-    totalVideos: number;
-    totalViews: number;
-    averageViews: number;
-    totalComments: number;
-    engagementRate: number;
-  };
-}
-
 // Search parameters
 export interface SearchParams {
   part?: string;
   q?: string;
   channelId?: string;
-  channelType?: 'any' | 'show';
-  eventType?: 'completed' | 'live' | 'upcoming';
+  channelType?: "any" | "show";
+  eventType?: "completed" | "live" | "upcoming";
   maxResults?: number;
-  order?: 'date' | 'rating' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
+  order?:
+    | "date"
+    | "rating"
+    | "relevance"
+    | "title"
+    | "videoCount"
+    | "viewCount";
   publishedAfter?: string;
   publishedBefore?: string;
   regionCode?: string;
-  safeSearch?: 'moderate' | 'none' | 'strict';
-  type?: 'channel' | 'playlist' | 'video';
-  videoDuration?: 'any' | 'long' | 'medium' | 'short';
+  safeSearch?: "moderate" | "none" | "strict";
+  type?: "channel" | "playlist" | "video";
+  videoDuration?: "any" | "long" | "medium" | "short";
   pageToken?: string;
 }
 
@@ -279,14 +206,14 @@ export interface SearchParams {
 export interface VideoListParams {
   part: string;
   id?: string;
-  chart?: 'mostPopular';
+  chart?: "mostPopular";
   maxResults?: number;
   regionCode?: string;
   videoCategoryId?: string;
   pageToken?: string;
 }
 
-// Channel list parameters  
+// Channel list parameters
 export interface ChannelListParams {
   part: string;
   id?: string;
@@ -307,15 +234,18 @@ export interface PlaylistListParams {
 }
 
 // Tool response types for workflow chaining
+export interface ToolRequestMetadata {
+  quotaUsed: number;
+  requestTime: number;
+  source: string;
+  estimatedQuota?: number;
+}
+
 export interface ToolResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-  metadata?: {
-    quotaUsed: number;
-    requestTime: number;
-    source: string;
-  };
+  metadata?: ToolRequestMetadata;
 }
 
 // Search tool parameters
@@ -323,19 +253,19 @@ export interface SearchVideosParams {
   query?: string;
   channelId?: string;
   maxResults?: number;
-  order?: 'date' | 'rating' | 'relevance' | 'title' | 'viewCount';
+  order?: "date" | "rating" | "relevance" | "title" | "viewCount";
   publishedAfter?: string;
   publishedBefore?: string;
-  videoDuration?: 'any' | 'long' | 'medium' | 'short';
+  videoDuration?: "any" | "long" | "medium" | "short";
   regionCode?: string;
-  safeSearch?: 'moderate' | 'none' | 'strict';
+  safeSearch?: "moderate" | "none" | "strict";
   pageToken?: string;
 }
 
 export interface SearchChannelsParams {
   query?: string;
   maxResults?: number;
-  order?: 'date' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
+  order?: "date" | "relevance" | "title" | "videoCount" | "viewCount";
   regionCode?: string;
   pageToken?: string;
 }
@@ -344,7 +274,7 @@ export interface SearchPlaylistsParams {
   query?: string;
   channelId?: string;
   maxResults?: number;
-  order?: 'date' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
+  order?: "date" | "relevance" | "title" | "videoCount" | "viewCount";
   regionCode?: string;
   pageToken?: string;
 }
@@ -360,7 +290,7 @@ export interface TrendingVideosParams {
 export interface KeywordData {
   keyword: string;
   frequency: number;
-  sources: ('title' | 'description' | 'tags' | 'comments')[];
+  sources: ("title" | "description" | "tags" | "comments")[];
   relevance: number;
   confidence?: number;
   relatedTerms?: string[];
@@ -368,7 +298,7 @@ export interface KeywordData {
   weight?: number;
   searchVolume?: number;
   competition?: number;
-  difficulty?: 'Low' | 'Medium' | 'High';
+  difficulty?: "Low" | "Medium" | "High";
 }
 
 export interface KeywordCluster {
@@ -406,23 +336,10 @@ export interface KeywordExtractionOptions {
   includeSingleWords?: boolean;
   includeStopWords?: boolean;
   languageFilter?: string;
-  sources?: ('title' | 'description' | 'tags' | 'comments')[];
+  sources?: ("title" | "description" | "tags" | "comments")[];
   minWordLength?: number;
   includeNGrams?: boolean;
   nGramSize?: number;
-}
-
-export interface KeywordResearchWorkflowOptions {
-  searchQuery?: string;
-  channelIds?: string[];
-  maxVideos?: number;
-  maxChannels?: number;
-  includeComments?: boolean;
-  timeframe?: 'week' | 'month' | 'quarter' | 'year';
-  minKeywordFrequency?: number;
-  generateClusters?: boolean;
-  exportFormat?: 'json' | 'csv' | 'visualization';
-  analysisDepth?: 'basic' | 'detailed' | 'comprehensive';
 }
 
 export interface KeywordAnalysisResult {
@@ -436,32 +353,10 @@ export interface KeywordAnalysisResult {
   };
   recommendations: string[];
   competitionAnalysis?: {
-    level: 'low' | 'medium' | 'high';
+    level: "low" | "medium" | "high";
     topCompetitors: string[];
     gaps: string[];
   };
-}
-
-export interface KeywordTrendData {
-  keyword: string;
-  timeframe: string;
-  dataPoints: Array<{
-    date: string;
-    frequency: number;
-    volume: number;
-  }>;
-  trend: 'rising' | 'falling' | 'stable';
-  trendScore: number;
-}
-
-export interface ContentOpportunity {
-  keyword: string;
-  opportunityScore: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  searchVolume: number;
-  competition: number;
-  suggestedContentTypes: string[];
-  reasoning: string[];
 }
 
 // New Video Part Interfaces for expanded YouTube API v3 data
@@ -652,12 +547,6 @@ export interface PlaylistLocalizations {
 }
 
 // Enhanced Comment Interfaces
-export interface CommentAuthorDetails {
-  displayName?: string;
-  profileImageUrl?: string;
-  channelUrl?: string;
-  channelId?: string;
-}
 
 export interface CommentReply {
   id: string;
@@ -676,15 +565,12 @@ export interface CommentReply {
 }
 
 // Search Enhancement Types
-export type EnrichmentOptions = boolean | {
-  parts: string[];
-  fields?: string;
-};
-
-export interface EnrichedSearchResult<T = any> extends SearchResult {
-  enrichedData?: T;
-}
-
+export type EnrichmentOptions =
+  | boolean
+  | {
+      parts: string[];
+      fields?: string;
+    };
 // Update existing interfaces to include new optional parts
 export interface Video {
   kind: string;
@@ -738,45 +624,17 @@ export interface Playlist {
 }
 
 // Enhanced Comment Thread with author details and replies
-export interface CommentThread {
-  id: string;
-  snippet: {
-    topLevelComment: {
-      id?: string;
-      snippet: {
-        textDisplay: string;
-        authorDisplayName: string;
-        authorChannelId?: {
-          value: string;
-        };
-        authorProfileImageUrl?: string;
-        publishedAt: string;
-        likeCount: number;
-        updatedAt?: string;
-      };
-    };
-    totalReplyCount: number;
-    isPublic?: boolean;
-    canReply?: boolean;
-    videoId?: string;
-    channelId?: string;
-  };
-  replies?: {
-    comments: CommentReply[];
-  };
-}
-
 // Update Search Params interfaces to include enrichment options
 export interface SearchVideosParams {
   query?: string;
   channelId?: string;
   maxResults?: number;
-  order?: 'date' | 'rating' | 'relevance' | 'title' | 'viewCount';
+  order?: "date" | "rating" | "relevance" | "title" | "viewCount";
   publishedAfter?: string;
   publishedBefore?: string;
-  videoDuration?: 'any' | 'long' | 'medium' | 'short';
+  videoDuration?: "any" | "long" | "medium" | "short";
   regionCode?: string;
-  safeSearch?: 'moderate' | 'none' | 'strict';
+  safeSearch?: "moderate" | "none" | "strict";
   pageToken?: string;
   enrichDetails?: EnrichmentOptions;
 }
@@ -784,7 +642,7 @@ export interface SearchVideosParams {
 export interface SearchChannelsParams {
   query?: string;
   maxResults?: number;
-  order?: 'date' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
+  order?: "date" | "relevance" | "title" | "videoCount" | "viewCount";
   regionCode?: string;
   pageToken?: string;
   enrichDetails?: EnrichmentOptions;
@@ -794,7 +652,7 @@ export interface SearchPlaylistsParams {
   query?: string;
   channelId?: string;
   maxResults?: number;
-  order?: 'date' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
+  order?: "date" | "relevance" | "title" | "videoCount" | "viewCount";
   regionCode?: string;
   pageToken?: string;
   enrichDetails?: EnrichmentOptions;
@@ -802,11 +660,62 @@ export interface SearchPlaylistsParams {
 
 // Global Configuration Type
 export interface GlobalConfig {
-  defaultEnrichment: boolean;
+  // Default parts to include in video requests
+  // Note: For new code, use DEFAULT_VIDEO_PARTS from constants.ts directly
   defaultVideoParts: string[];
+  // Default parts to include in channel requests
+  // Note: For new code, use DEFAULT_CHANNEL_PARTS from constants.ts directly
   defaultChannelParts: string[];
+  // Default parts to include in playlist requests
+  // Note: For new code, use DEFAULT_PLAYLIST_PARTS from constants.ts directly
   defaultPlaylistParts: string[];
-  enableGracefulDegradation: boolean;
+  // Maximum items per batch for enrichment calls
   maxBatchSize: number;
-  concurrencyLimit: number;
+}
+
+// Unified Search Parameters
+export interface UnifiedSearchParams {
+  query?: string;
+  channelId?: string;
+  type?: "video" | "channel" | "playlist";
+  maxResults?: number;
+  order?: "date" | "rating" | "relevance" | "title" | "viewCount";
+  publishedAfter?: string;
+  publishedBefore?: string;
+  videoDuration?: "any" | "long" | "medium" | "short";
+  regionCode?: string;
+  safeSearch?: "moderate" | "none" | "strict";
+  pageToken?: string;
+  filters?: {
+    duration?: "any" | "long" | "medium" | "short";
+    uploadDate?: "any" | "hour" | "today" | "week" | "month" | "year";
+    sortBy?: "relevance" | "upload_date" | "view_count" | "rating";
+  };
+  enrichParts?: {
+    video?: string[];
+    channel?: string[];
+    playlist?: string[];
+  };
+}
+
+// MCP Prompt Types
+export interface PromptArgument {
+  name: string;
+  description?: string;
+  required: boolean;
+  default?: any;
+}
+
+export interface PromptTemplate {
+  name: string;
+  description: string;
+  arguments?: PromptArgument[];
+}
+
+export interface MCPPromptMessage {
+  role: "user" | "assistant" | "system";
+  content: {
+    type: "text";
+    text: string;
+  };
 }

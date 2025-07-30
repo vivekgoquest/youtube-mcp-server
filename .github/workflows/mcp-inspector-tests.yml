@@ -2,13 +2,13 @@ name: MCP Inspector Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
   schedule:
     # Run daily at 2 AM UTC to catch API changes
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
 
 jobs:
   mcp-inspector-tests:
@@ -35,7 +35,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
@@ -97,44 +97,44 @@ jobs:
         if: always()
         run: |
           mkdir -p test-artifacts
-          
+
           # Collect log files if they exist
           if [ -f test-results.log ]; then
             cp test-results.log test-artifacts/
           fi
-          
+
           if [ -f server.log ]; then
             cp server.log test-artifacts/
           fi
-          
+
           if [ -f tool-discovery-report.json ]; then
             cp tool-discovery-report.json test-artifacts/
           fi
-          
+
           # Create test summary
           cat > test-artifacts/test-summary.md << EOF
           # Test Summary
-          
+
           **Node Version**: ${{ matrix.node-version }}
           **Test Mode**: ${{ matrix.test-mode }}
           **Branch**: ${{ github.ref_name }}
           **Commit**: ${{ github.sha }}
           **Run Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          
+
           ## Test Results
-          
+
           - **Tool Discovery**: ${{ steps.discovery.outputs.discovery_status || 'failed' }}
           - **Shell Tests**: ${{ steps.shell_tests.outputs.shell_tests_status || 'skipped' }}
           - **E2E Tests**: ${{ steps.e2e_tests.outputs.e2e_tests_status || 'skipped' }}
           - **Unit Tests**: ${{ steps.unit_tests.outputs.unit_tests_status || 'failed' }}
           - **Error Handling**: ${{ steps.no_api_key_test.outputs.no_api_key_test_status || 'failed' }}
-          
+
           ## Environment
-          
+
           - **API Key Available**: ${{ env.YOUTUBE_API_KEY != '' }}
           - **OS**: Ubuntu Latest
           - **Node**: ${{ matrix.node-version }}
-          
+
           EOF
 
       - name: Upload Test Artifacts
@@ -169,7 +169,7 @@ jobs:
     name: API Quota Usage Check
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -177,8 +177,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
@@ -196,7 +196,7 @@ jobs:
   security-check:
     name: Security and Compliance Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -213,26 +213,26 @@ jobs:
       - name: Validate Test Scripts
         run: |
           echo "Validating test script permissions and content..."
-          
+
           # Check script permissions
           if [ ! -x scripts/test-mcp-inspector.sh ]; then
             echo "ERROR: Test script is not executable!"
             exit 1
           fi
-          
+
           # Check for dangerous commands
           if grep -E "(rm -rf /|sudo|su -)" scripts/test-mcp-inspector.sh; then
             echo "ERROR: Dangerous commands found in test script!"
             exit 1
           fi
-          
+
           echo "Test scripts validation passed."
 
   compatibility-matrix:
     name: Compatibility Matrix Test
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     strategy:
       matrix:
         include:
@@ -242,7 +242,7 @@ jobs:
             api-key: missing
           - node-version: 20
             api-key: present
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -251,7 +251,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
@@ -278,7 +278,7 @@ jobs:
     name: Performance Baseline
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -286,8 +286,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
@@ -300,18 +300,18 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
           echo "Running performance baseline tests..."
-          
+
           # Time the tool discovery process
           start_time=$(date +%s)
           npm run test:discovery
           end_time=$(date +%s)
           discovery_time=$((end_time - start_time))
-          
+
           echo "Tool discovery time: ${discovery_time}s"
-          
+
           # Save performance metrics
           echo "discovery_time_seconds: $discovery_time" > performance-metrics.txt
-          
+
           # Performance thresholds
           if [ $discovery_time -gt 30 ]; then
             echo "WARNING: Tool discovery took longer than expected (${discovery_time}s > 30s)"

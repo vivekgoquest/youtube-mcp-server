@@ -1,7 +1,9 @@
-import { ToolMetadata, ToolRunner } from '../interfaces/tool.js';
-import { YouTubeClient } from '../youtube-client.js';
-import { ToolResponse, KeywordData } from '../types.js';
-import { TextProcessor } from '../utils/text-processing.js';
+import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import { YouTubeClient } from "../youtube-client.js";
+import { ToolResponse, KeywordData } from "../types.js";
+import { TextProcessor } from "../utils/text-processing.js";
+import { ErrorHandler } from "../utils/error-handler.js";
+import { YOUTUBE_API_BATCH_SIZE } from "../config/constants.js";
 
 interface ExtractKeywordsFromVideosOptions {
   videoIds: string[];
@@ -11,72 +13,77 @@ interface ExtractKeywordsFromVideosOptions {
 }
 
 export const metadata: ToolMetadata = {
-  name: 'extract_keywords_from_videos',
-  description: 'Extract ALL keywords from video titles, descriptions, tags, and optionally comments. Use this to REVERSE ENGINEER successful videos and steal their keyword strategies. Input video IDs from search_videos. Returns: exact tags used, keywords with frequency counts, phrases that appear multiple times. POWERFUL for: copying competitor keywords, finding niche-specific terms, understanding what keywords drive views. Can analyze up to 50 videos at once.',
+  name: "extract_keywords_from_videos",
+  description:
+    "Extract ALL keywords from video titles, descriptions, tags, and optionally comments. Use this to REVERSE ENGINEER successful videos and steal their keyword strategies. Input video IDs from unified_search. Returns: exact tags used, keywords with frequency counts, phrases that appear multiple times. POWERFUL for: copying competitor keywords, finding niche-specific terms, understanding what keywords drive views. Can analyze up to 50 videos at once.",
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       videoIds: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'string'
+          type: "string",
         },
-        description: 'Array of YouTube video IDs to extract keywords from'
+        description: "Array of YouTube video IDs to extract keywords from",
       },
       includeComments: {
-        type: 'boolean',
-        description: 'Include keywords from video comments (default: false)',
-        default: false
+        type: "boolean",
+        description: "Include keywords from video comments (default: false)",
+        default: false,
       },
       maxCommentsPerVideo: {
-        type: 'integer',
-        description: 'Maximum comments to analyze per video (default: 100)',
+        type: "integer",
+        description: "Maximum comments to analyze per video (default: 100)",
         minimum: 1,
         maximum: 500,
-        default: 100
+        default: 100,
       },
       maxKeywords: {
-        type: 'integer',
-        description: 'Maximum number of keywords to return (default: 100)',
+        type: "integer",
+        description: "Maximum number of keywords to return (default: 100)",
         minimum: 1,
         maximum: 500,
-        default: 100
-      }
+        default: 100,
+      },
     },
-    required: ['videoIds']
+    required: ["videoIds"],
   },
-  quotaCost: 1
+  quotaCost: 1,
 };
 
-export default class ExtractKeywordsFromVideosTool implements ToolRunner<ExtractKeywordsFromVideosOptions, KeywordData[]> {
+export default class ExtractKeywordsFromVideosTool
+  implements ToolRunner<ExtractKeywordsFromVideosOptions, KeywordData[]>
+{
   constructor(private client: YouTubeClient) {}
 
-  async run(options: ExtractKeywordsFromVideosOptions): Promise<ToolResponse<KeywordData[]>> {
+  async run(
+    options: ExtractKeywordsFromVideosOptions,
+  ): Promise<ToolResponse<KeywordData[]>> {
     const startTime = Date.now();
-    
+
     try {
       if (!options.videoIds || options.videoIds.length === 0) {
         return {
           success: false,
-          error: 'Video IDs array is required and cannot be empty',
+          error: "Video IDs array is required and cannot be empty",
           metadata: {
             quotaUsed: 0,
             requestTime: Date.now() - startTime,
-            source: 'keyword-extraction-videos'
-          }
+            source: "keyword-extraction-videos",
+          },
         };
       }
 
       const allKeywords: KeywordData[] = [];
-      const batchSize = 50;
+      const batchSize = YOUTUBE_API_BATCH_SIZE;
       let quotaUsed = 0;
 
       // Process videos in batches
       for (let i = 0; i < options.videoIds.length; i += batchSize) {
         const batch = options.videoIds.slice(i, i + batchSize);
         const videosResponse = await this.client.getVideos({
-          part: 'snippet,statistics',
-          id: batch.join(',')
+          part: "snippet,statistics",
+          id: batch.join(","),
         });
 
         quotaUsed += 1;
@@ -88,15 +95,20 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
           // Extract from comments if requested
           if (options.includeComments) {
             try {
-              const comments = await this.getVideoComments(video.id, options.maxCommentsPerVideo || 100);
+              const comments = await this.getVideoComments(
+                video.id,
+                options.maxCommentsPerVideo || 100,
+              );
               quotaUsed += Math.ceil(comments.length / 100);
               const commentKeywords = this.processCommentContent(comments);
               allKeywords.push(...commentKeywords);
             } catch (error) {
               // Comment extraction failed - continue without comments
-              if (process.env.DEBUG_CONSOLE === 'true') {
-                console.error(`Failed to get comments for video ${video.id}:`, error);
-              }
+              ErrorHandler.handleSystemError(error, {
+                component: "ExtractKeywordsFromVideosTool",
+                operation: `get comments for video ${video.id}`,
+                critical: false,
+              });
             }
           }
         }
@@ -116,61 +128,60 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
         metadata: {
           quotaUsed,
           requestTime: Date.now() - startTime,
-          source: 'keyword-extraction-videos'
-        }
+          source: "keyword-extraction-videos",
+        },
       };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        metadata: {
-          quotaUsed: 0,
-          requestTime: Date.now() - startTime,
-          source: 'keyword-extraction-videos'
-        }
-      };
+    } catch (error) {
+      return ErrorHandler.handleToolError<KeywordData[]>(error, {
+        quotaUsed: 0,
+        startTime,
+        source: "keyword-extraction-videos",
+      });
     }
   }
 
   private processVideoContent(video: any): KeywordData[] {
     const keywords: KeywordData[] = [];
-    const sources = ['title', 'description', 'tags'] as const;
+    const sources = ["title", "description", "tags"] as const;
 
     // Extract from title
     if (video.snippet?.title) {
       const titleKeywords = TextProcessor.extractKeywords(video.snippet.title, {
         minWordLength: 3,
-        maxKeywords: 20
+        maxKeywords: 20,
       });
-      
-      titleKeywords.forEach(keyword => {
+
+      titleKeywords.forEach((keyword) => {
         keywords.push({
           keyword,
           frequency: 1,
-          sources: ['title'],
+          sources: ["title"],
           relevance: 0.9,
           confidence: 0.9,
           relatedTerms: [],
-          contexts: [video.snippet.title]
+          contexts: [video.snippet.title],
         });
       });
     }
 
     // Extract from description
     if (video.snippet?.description) {
-      const descKeywords = TextProcessor.extractKeywords(video.snippet.description, {
-        minWordLength: 3,
-        maxKeywords: 30
-      });
-      descKeywords.forEach(keyword => {
+      const descKeywords = TextProcessor.extractKeywords(
+        video.snippet.description,
+        {
+          minWordLength: 3,
+          maxKeywords: 30,
+        },
+      );
+      descKeywords.forEach((keyword) => {
         keywords.push({
           keyword,
           frequency: 1,
-          sources: ['description'],
+          sources: ["description"],
           relevance: 0.7,
           confidence: 0.7,
           relatedTerms: [],
-          contexts: [video.snippet.description.substring(0, 200)]
+          contexts: [video.snippet.description.substring(0, 200)],
         });
       });
     }
@@ -181,11 +192,11 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
         keywords.push({
           keyword: tag.toLowerCase(),
           frequency: 1,
-          sources: ['tags'],
+          sources: ["tags"],
           relevance: 0.95,
           confidence: 0.95,
           relatedTerms: [],
-          contexts: [tag]
+          contexts: [tag],
         });
       });
     }
@@ -193,16 +204,19 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
     return keywords;
   }
 
-  private async getVideoComments(videoId: string, maxResults: number): Promise<any[]> {
+  private async getVideoComments(
+    videoId: string,
+    maxResults: number,
+  ): Promise<any[]> {
     const comments: any[] = [];
     let pageToken: string | undefined;
 
     do {
-      const response = await this.client.makeRawRequest('/commentThreads', {
-        part: 'snippet',
+      const response = await this.client.makeRawRequest("/commentThreads", {
+        part: "snippet",
         videoId,
         maxResults: Math.min(100, maxResults - comments.length),
-        pageToken
+        pageToken,
       });
 
       comments.push(...(response.items || []));
@@ -214,23 +228,24 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
 
   private processCommentContent(comments: any[]): KeywordData[] {
     const keywords: KeywordData[] = [];
-    
-    comments.forEach(comment => {
-      const commentText = comment.snippet?.topLevelComment?.snippet?.textDisplay || '';
+
+    comments.forEach((comment) => {
+      const commentText =
+        comment.snippet?.topLevelComment?.snippet?.textDisplay || "";
       if (commentText) {
         const commentKeywords = TextProcessor.extractKeywords(commentText, {
           minWordLength: 3,
-          maxKeywords: 10
+          maxKeywords: 10,
         });
-        commentKeywords.forEach(keyword => {
+        commentKeywords.forEach((keyword) => {
           keywords.push({
             keyword,
             frequency: 1,
-            sources: ['comments'],
+            sources: ["comments"],
             relevance: 0.5,
             confidence: 0.5,
             relatedTerms: [],
-            contexts: [commentText.substring(0, 100)]
+            contexts: [commentText.substring(0, 100)],
           });
         });
       }
@@ -242,22 +257,27 @@ export default class ExtractKeywordsFromVideosTool implements ToolRunner<Extract
   private mergeKeywordData(keywords: KeywordData[]): KeywordData[] {
     const keywordMap = new Map<string, KeywordData>();
 
-    keywords.forEach(keyword => {
+    keywords.forEach((keyword) => {
       const key = keyword.keyword.toLowerCase();
-      
+
       if (keywordMap.has(key)) {
         const existing = keywordMap.get(key)!;
         existing.frequency += keyword.frequency;
-        existing.sources = [...new Set([...existing.sources, ...keyword.sources])];
+        existing.sources = [
+          ...new Set([...existing.sources, ...keyword.sources]),
+        ];
         if (existing.contexts && keyword.contexts) {
           existing.contexts.push(...keyword.contexts);
         }
         existing.relevance = Math.max(existing.relevance, keyword.relevance);
-        existing.confidence = Math.max(existing.confidence || 0, keyword.confidence || 0);
+        existing.confidence = Math.max(
+          existing.confidence || 0,
+          keyword.confidence || 0,
+        );
       } else {
         keywordMap.set(key, {
           ...keyword,
-          contexts: keyword.contexts ? [...keyword.contexts] : []
+          contexts: keyword.contexts ? [...keyword.contexts] : [],
         });
       }
     });

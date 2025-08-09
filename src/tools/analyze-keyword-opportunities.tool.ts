@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface KeywordOpportunityOptions {
@@ -28,7 +28,6 @@ export const metadata: ToolMetadata = {
   name: "analyze_keyword_opportunities",
   description:
     'OPPORTUNITY SCANNER that finds untapped keywords with high potential. Analyzes competition difficulty, search volume, and ranking potential for each keyword. Returns opportunity score (1-100) showing which keywords are easiest to rank for. Use this to find "golden keywords" - high search, low competition. INCLUDES: related keyword suggestions, competition analysis per keyword, and specific content recommendations. Essential for finding keywords where you can actually rank on page 1.',
-  quotaCost: 100,
   inputSchema: {
     type: "object",
     properties: {
@@ -65,8 +64,6 @@ export default class AnalyzeKeywordOpportunitiesTool
   async run(
     options: KeywordOpportunityOptions,
   ): Promise<ToolResponse<KeywordAnalysis[]>> {
-    const startTime = Date.now();
-
     try {
       const maxResults = options.maxResults || 25;
       const keywordAnalyses: KeywordAnalysis[] = [];
@@ -129,16 +126,9 @@ export default class AnalyzeKeywordOpportunitiesTool
       return {
         success: true,
         data: keywordAnalyses.slice(0, maxResults),
-        metadata: {
-          quotaUsed: options.keywords.length * 100,
-          requestTime: Date.now() - startTime,
-          source: "youtube-keyword-analysis",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<KeywordAnalysis[]>(error, {
-        quotaUsed: 0,
-        startTime,
         source: "youtube-keyword-analysis",
       });
     }

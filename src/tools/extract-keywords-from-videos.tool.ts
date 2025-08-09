@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, KeywordData } from "../types.js";
+import type { ToolResponse, KeywordData } from "../types.js";
 import { TextProcessor } from "../utils/text-processing.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 import { YOUTUBE_API_BATCH_SIZE } from "../config/constants.js";
@@ -48,7 +48,6 @@ export const metadata: ToolMetadata = {
     },
     required: ["videoIds"],
   },
-  quotaCost: 1,
 };
 
 export default class ExtractKeywordsFromVideosTool
@@ -59,24 +58,17 @@ export default class ExtractKeywordsFromVideosTool
   async run(
     options: ExtractKeywordsFromVideosOptions,
   ): Promise<ToolResponse<KeywordData[]>> {
-    const startTime = Date.now();
 
     try {
       if (!options.videoIds || options.videoIds.length === 0) {
         return {
           success: false,
           error: "Video IDs array is required and cannot be empty",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "keyword-extraction-videos",
-          },
         };
       }
 
       const allKeywords: KeywordData[] = [];
       const batchSize = YOUTUBE_API_BATCH_SIZE;
-      let quotaUsed = 0;
 
       // Process videos in batches
       for (let i = 0; i < options.videoIds.length; i += batchSize) {
@@ -86,7 +78,6 @@ export default class ExtractKeywordsFromVideosTool
           id: batch.join(","),
         });
 
-        quotaUsed += 1;
 
         for (const video of videosResponse.items) {
           const videoKeywords = this.processVideoContent(video);
@@ -99,7 +90,6 @@ export default class ExtractKeywordsFromVideosTool
                 video.id,
                 options.maxCommentsPerVideo || 100,
               );
-              quotaUsed += Math.ceil(comments.length / 100);
               const commentKeywords = this.processCommentContent(comments);
               allKeywords.push(...commentKeywords);
             } catch (error) {
@@ -125,24 +115,14 @@ export default class ExtractKeywordsFromVideosTool
       return {
         success: true,
         data: finalKeywords,
-        metadata: {
-          quotaUsed,
-          requestTime: Date.now() - startTime,
-          source: "keyword-extraction-videos",
-        },
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<KeywordData[]>(error, {
-        quotaUsed: 0,
-        startTime,
-        source: "keyword-extraction-videos",
-      });
+      return ErrorHandler.handleToolError<KeywordData[]>(error);
     }
   }
 
   private processVideoContent(video: any): KeywordData[] {
     const keywords: KeywordData[] = [];
-    const sources = ["title", "description", "tags"] as const;
 
     // Extract from title
     if (video.snippet?.title) {

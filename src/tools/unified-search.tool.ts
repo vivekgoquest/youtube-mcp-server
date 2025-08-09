@@ -1,25 +1,16 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import type {
-  YouTubeApiResponse,
-  SearchResult,
   UnifiedSearchParams,
   ToolResponse,
 } from "../types.js";
 import {
-  validateSearchQuery,
   validateMaxResults,
   validateDateRange,
   validateEnrichmentParts,
   buildSearchParams,
 } from "../utils/search-validation.js";
 import { performEnrichment } from "../utils/search-enrichment.js";
-import { calculateSearchQuota } from "../utils/quota-calculator.js";
-import { ErrorHandler } from "../utils/error-handler.js";
-import {
-  DEFAULT_VIDEO_PARTS,
-  DEFAULT_CHANNEL_PARTS,
-  DEFAULT_PLAYLIST_PARTS,
-} from "../config/constants.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 
 export const metadata = {
   name: "unified_search",
@@ -36,7 +27,6 @@ Use enrichParts to fetch additional details for results. Default parts are used 
 
 Quota Usage: Base search costs 100 units, plus enrichment costs if requested.`,
   version: "1.0.0",
-  quotaCost: 100,
   inputSchema: {
     type: "object",
     properties: {
@@ -168,68 +158,124 @@ Quota Usage: Base search costs 100 units, plus enrichment costs if requested.`,
   },
 };
 
-export default class UnifiedSearchTool
-  implements ToolRunner<UnifiedSearchParams, YouTubeApiResponse<SearchResult>>
-{
+export default class UnifiedSearchTool extends Tool<UnifiedSearchParams, string> {
   static metadata = metadata;
-  constructor(private client: any) {}
+  constructor(private client: any) {
+    super();
+  }
 
-  async run(
+  protected async execute(
     params: UnifiedSearchParams,
-  ): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
-    const startTime = Date.now();
+  ): Promise<ToolResponse<string>> {
+    // Validate parameters
+    validateMaxResults(params.maxResults);
+    validateDateRange(params.publishedAfter, params.publishedBefore);
+    validateEnrichmentParts(params.enrichParts, params.type);
 
-    // Calculate estimated quota usage upfront
-    const estimatedQuota = calculateSearchQuota(params);
-    let quotaUsed = 100; // Base search cost
+    // Build search parameters
+    const searchParams = buildSearchParams(params);
 
-    try {
-      // Validate parameters
-      validateMaxResults(params.maxResults);
-      validateDateRange(params.publishedAfter, params.publishedBefore);
-      validateEnrichmentParts(params.enrichParts, params.type);
+    // Execute search
+    const searchResults = await this.client.search(searchParams);
 
-      // Build search parameters
-      const searchParams = buildSearchParams(params);
+    // Perform enrichment if requested
+    if (params.enrichParts && searchResults.items.length > 0) {
+      const type = params.type || "video";
 
-      // Execute search
-      const searchResults = await this.client.search(searchParams);
+      // Use the consolidated enrichment function
+      searchResults.items = await performEnrichment(
+        this.client,
+        searchResults.items,
+        params.enrichParts,
+        type,
+      );
+    }
 
-      // Perform enrichment if requested
-      if (params.enrichParts && searchResults.items.length > 0) {
-        const quotaTracker = { quotaUsed: 0 };
-        const type = params.type || "video";
+    // Format the results
+    const searchType = searchResults.items[0]?.id?.videoId
+      ? "videos"
+      : searchResults.items[0]?.id?.channelId
+        ? "channels"
+        : searchResults.items[0]?.id?.playlistId
+          ? "playlists"
+          : "results";
+    
+    const formattedResult = this.formatSearchResults(searchResults.items, searchType, params);
 
-        // Use the consolidated enrichment function
-        searchResults.items = await performEnrichment(
-          this.client,
-          searchResults.items,
-          params.enrichParts,
-          type,
-          quotaTracker,
-        );
+    return {
+      success: true,
+      data: formattedResult,
+    };
+  }
 
-        quotaUsed += quotaTracker.quotaUsed;
+  private formatSearchResults(items: any[], type: string, params: UnifiedSearchParams): string {
+    if (items.length === 0) {
+      return ResponseFormatters.sectionHeader("🔍", `No ${type} found matching your search criteria.`);
+    }
+
+    let output = ResponseFormatters.sectionHeader("🔍", "Search Results");
+    
+    if (params.query) {
+      output += ResponseFormatters.keyValue("Query", params.query);
+    }
+    if (params.channelId) {
+      output += ResponseFormatters.keyValue("Channel Filter", params.channelId);
+    }
+    output += ResponseFormatters.keyValue("Type", type);
+    output += ResponseFormatters.keyValue("Results", items.length.toString());
+    if (params.regionCode) {
+      output += ResponseFormatters.keyValue("Region", params.regionCode);
+    }
+    output += "\n";
+
+    items.forEach((item, index) => {
+      output += ResponseFormatters.numberedItem(index + 1, `**${item.snippet?.title || "Untitled"}**`);
+
+      // Handle different result types appropriately
+      if (type === "channels") {
+        // For channel results, show subscriber count if available from enriched data
+        if (item.statistics?.subscriberCount) {
+          output += ResponseFormatters.keyValue("Subscribers", ResponseFormatters.formatNumber(item.statistics.subscriberCount), 3);
+        }
+        if (item.statistics?.videoCount) {
+          output += ResponseFormatters.keyValue("Videos", ResponseFormatters.formatNumber(item.statistics.videoCount), 3);
+        }
+      } else {
+        // For video/playlist results, show the channel that owns them
+        if (item.snippet?.channelTitle) {
+          output += ResponseFormatters.keyValue("Channel", item.snippet.channelTitle, 3);
+        }
       }
 
-      return {
-        success: true,
-        data: searchResults,
-        metadata: {
-          quotaUsed,
-          estimatedQuota,
-          requestTime: Date.now() - startTime,
-          source: "unified_search",
-        },
-      };
-    } catch (error: any) {
-      return ErrorHandler.handleToolError(error, {
-        quotaUsed,
-        estimatedQuota,
-        startTime,
-        source: "unified_search",
-        defaultMessage: "Search failed",
-      });
-    }
+      if (item.snippet?.publishedAt) {
+        output += ResponseFormatters.keyValue("Published", ResponseFormatters.formatDate(item.snippet.publishedAt), 3);
+      }
+
+      // Video-specific enriched data
+      if (item.id?.videoId) {
+        if (item.statistics?.viewCount) {
+          output += ResponseFormatters.keyValue("Views", ResponseFormatters.formatViewCount(item.statistics.viewCount), 3);
+        }
+        if (item.contentDetails?.duration) {
+          output += ResponseFormatters.keyValue("Duration", ResponseFormatters.formatDuration(item.contentDetails.duration), 3);
+        }
+        output += ResponseFormatters.keyValue("URL", ResponseFormatters.getYouTubeUrl("video", item.id.videoId), 3);
+      } else if (item.id?.channelId) {
+        output += ResponseFormatters.keyValue("URL", ResponseFormatters.getYouTubeUrl("channel", item.id.channelId), 3);
+      } else if (item.id?.playlistId) {
+        if (item.contentDetails?.itemCount !== undefined) {
+          output += ResponseFormatters.keyValue("Videos", item.contentDetails.itemCount.toString(), 3);
+        }
+        output += ResponseFormatters.keyValue("URL", ResponseFormatters.getYouTubeUrl("playlist", item.id.playlistId), 3);
+      }
+
+      if (item.snippet?.description) {
+        output += ResponseFormatters.keyValue("Description", ResponseFormatters.truncateText(item.snippet.description, 150), 3);
+      }
+
+      output += "\n";
+    });
+
+    return output;
   }
 }

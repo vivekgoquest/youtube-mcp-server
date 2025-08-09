@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, KeywordCloudData, KeywordCluster } from "../types.js";
+import type { ToolResponse, KeywordCloudData, KeywordCluster } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface GenerateKeywordCloudOptions {
@@ -44,29 +44,22 @@ export const metadata: ToolMetadata = {
     },
     required: ["keywords"],
   },
-  quotaCost: 0,
 };
 
 export default class GenerateKeywordCloudTool
   implements ToolRunner<GenerateKeywordCloudOptions, KeywordCloudData>
 {
-  constructor(private client: YouTubeClient) {}
+  constructor(_client: YouTubeClient) {}
 
   async run(
     options: GenerateKeywordCloudOptions,
   ): Promise<ToolResponse<KeywordCloudData>> {
-    const startTime = Date.now();
 
     try {
       if (!options.keywords || options.keywords.length === 0) {
         return {
           success: false,
           error: "Keywords array is required and cannot be empty",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "keyword-cloud-generation",
-          },
         };
       }
 
@@ -90,31 +83,22 @@ export default class GenerateKeywordCloudTool
           totalSources: 1, // Single input source
           generatedAt: new Date().toISOString(),
           sourceTypes: ["manual"],
-          processingTime: Date.now() - startTime,
+          processingTime: 0,
         },
       };
 
       return {
         success: true,
         data: cloudData,
-        metadata: {
-          quotaUsed: 0, // No API calls for cloud generation
-          requestTime: Date.now() - startTime,
-          source: "keyword-cloud-generation",
-        },
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<KeywordCloudData>(error, {
-        quotaUsed: 0,
-        startTime,
-        source: "keyword-cloud-generation",
-      });
+      return ErrorHandler.handleToolError<KeywordCloudData>(error);
     }
   }
 
   private processKeywordsForCloud(
     keywords: string[],
-    options: GenerateKeywordCloudOptions,
+    _options: GenerateKeywordCloudOptions,
   ): Array<{
     text: string;
     weight: number;
@@ -293,6 +277,7 @@ export default class GenerateKeywordCloudTool
       "#BB8FCE",
       "#85C1E9",
     ];
-    return colors[index % colors.length];
+    const color = colors[index % colors.length];
+    return color || "#808080"; // fallback color
   }
 }

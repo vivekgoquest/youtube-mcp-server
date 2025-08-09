@@ -11,9 +11,25 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["node", "jest"],
-    "isolatedModules": true
+    "types": ["node"],
+    "isolatedModules": true,
+    
+    // Dead code detection
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    
+    // Import hygiene
+    "verbatimModuleSyntax": true,
+    
+    // Additional strictness
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "debug"]
+  "exclude": ["node_modules", "dist", "debug"]
 }

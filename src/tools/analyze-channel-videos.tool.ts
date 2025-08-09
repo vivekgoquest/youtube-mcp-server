@@ -1,7 +1,8 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
+import type { ToolResponse } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 import { YOUTUBE_API_BATCH_SIZE } from "../config/constants.js";
 
 interface ChannelAnalysisOptions {
@@ -40,20 +41,25 @@ interface VideoAnalysis {
   tags: string[];
 }
 
-interface BatchedVideoAnalysis {
-  totalVideos: number;
-  batchCount: number;
-  batches: {
-    batchNumber: number;
-    videos: VideoAnalysis[];
-  }[];
+
+interface DurationRange {
+  label: string;
+  maxMinutes: number;
+  sequence: number;
+  avgMinutes: number;
 }
+
+const DURATION_RANGES: DurationRange[] = [
+  { label: "0-1 min", maxMinutes: 1, sequence: 0, avgMinutes: 0.5 },
+  { label: "1-10 min", maxMinutes: 10, sequence: 1, avgMinutes: 5 },
+  { label: "10-30 min", maxMinutes: 30, sequence: 2, avgMinutes: 20 },
+  { label: "30+ min", maxMinutes: Infinity, sequence: 3, avgMinutes: 40 },
+];
 
 export const metadata: ToolMetadata = {
   name: "analyze_channel_videos",
   description:
     "DEEP ANALYSIS of all videos from any channel - yours or competitors. Analyzes up to 1000 videos to uncover: best performing content types, optimal video lengths, upload time patterns, engagement rates by video type, and performance trends. Use AFTER get_channel_details to get comprehensive insights. Returns: top 10 videos ranked by views/engagement, average metrics, content categorization, and specific recommendations. NOTE: Video descriptions are excluded from this analysis to optimize response size - use get_video_details tool for complete metadata including descriptions. ESSENTIAL for understanding what content actually works. Results can be sorted by views, likes, comments, duration, viewsPerMonth, daysSinceUpload, or uploadDate (default).",
-  quotaCost: 2,
   inputSchema: {
     type: "object",
     properties: {
@@ -102,16 +108,15 @@ export const metadata: ToolMetadata = {
   },
 };
 
-export default class AnalyzeChannelVideosTool
-  implements ToolRunner<ChannelAnalysisOptions, BatchedVideoAnalysis>
-{
-  constructor(private client: YouTubeClient) {}
+export default class AnalyzeChannelVideosTool extends Tool<ChannelAnalysisOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-  async run(
+  async execute(
     options: ChannelAnalysisOptions,
-  ): Promise<ToolResponse<BatchedVideoAnalysis>> {
+  ): Promise<ToolResponse<string>> {
     try {
-      const startTime = Date.now();
       const maxVideos = options.maxVideos || 200;
 
       // Get channel's upload playlist
@@ -120,12 +125,17 @@ export default class AnalyzeChannelVideosTool
         id: options.channelId,
       });
 
-      if (channelResponse.items.length === 0) {
+      if (!channelResponse.items || channelResponse.items.length === 0) {
         throw new Error(`Channel ${options.channelId} not found`);
       }
 
-      const uploadsPlaylistId =
-        channelResponse.items[0].contentDetails?.relatedPlaylists?.uploads;
+      const firstItem = channelResponse.items[0];
+      if (!firstItem) {
+        throw new Error(`Channel ${options.channelId} not found`);
+      }
+
+      const contentDetails = firstItem.contentDetails;
+      const uploadsPlaylistId = contentDetails?.relatedPlaylists?.uploads;
       if (!uploadsPlaylistId) {
         throw new Error(
           `No uploads playlist found for channel ${options.channelId}`,
@@ -165,30 +175,18 @@ export default class AnalyzeChannelVideosTool
       // Apply maxVideos limit after sorting
       const limitedVideos = sortedVideos.slice(0, maxVideos);
 
-      // Create batched response
-      const batchedResponse = this.createBatchedResponse(limitedVideos);
-
-      // Calculate actual quota used
-      const playlistRequests = Math.ceil(videoIds.length / 50); // getAllPlaylistVideoIds pagination
-      const videoRequests = Math.ceil(videoIds.length / batchSize); // getVideos batch requests
-      const channelRequest = 1; // Initial channel request
-      const totalQuotaUsed = playlistRequests + videoRequests + channelRequest;
+      // Create formatted output
+      const formattedOutput = this.formatChannelAnalysis(limitedVideos, options);
 
       return {
         success: true,
-        data: batchedResponse,
-        metadata: {
-          quotaUsed: totalQuotaUsed,
-          requestTime: Date.now() - startTime,
-          source: "youtube-channel-analysis",
-        },
+        data: formattedOutput,
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<BatchedVideoAnalysis>(error, {
-        quotaUsed: 1,
-        startTime: 0, // startTime was declared in try block, so we use 0
-        source: "youtube-channel-analysis",
-      });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 
@@ -216,37 +214,111 @@ export default class AnalyzeChannelVideosTool
     return videoIds;
   }
 
+  private safelyExtractStatistics(video: any): {
+    viewCount: number;
+    likeCount: number;
+    commentCount: number;
+  } {
+    // Validate statistics object exists
+    if (!video || typeof video !== 'object' || !video.statistics || typeof video.statistics !== 'object') {
+      return {
+        viewCount: 0,
+        likeCount: 0,
+        commentCount: 0
+      };
+    }
+
+    // Validate and parse each field with explicit checks
+    const viewCount = (video.statistics.viewCount !== undefined && video.statistics.viewCount !== null) 
+      ? parseInt(String(video.statistics.viewCount), 10) || 0 
+      : 0;
+    
+    const likeCount = (video.statistics.likeCount !== undefined && video.statistics.likeCount !== null)
+      ? parseInt(String(video.statistics.likeCount), 10) || 0
+      : 0;
+    
+    const commentCount = (video.statistics.commentCount !== undefined && video.statistics.commentCount !== null)
+      ? parseInt(String(video.statistics.commentCount), 10) || 0
+      : 0;
+
+    return { viewCount, likeCount, commentCount };
+  }
+
+  private safelyExtractSnippet(video: any): {
+    title: string;
+    channelTitle: string;
+    channelId: string;
+    publishedAt: string;
+    tags: string[];
+  } {
+    // Validate snippet object exists
+    if (!video || typeof video !== 'object' || !video.snippet || typeof video.snippet !== 'object') {
+      return {
+        title: "",
+        channelTitle: "",
+        channelId: "",
+        publishedAt: new Date().toISOString(),
+        tags: []
+      };
+    }
+
+    const snippet = video.snippet;
+    
+    return {
+      title: (snippet.title !== undefined && snippet.title !== null) ? String(snippet.title) : "",
+      channelTitle: (snippet.channelTitle !== undefined && snippet.channelTitle !== null) ? String(snippet.channelTitle) : "",
+      channelId: (snippet.channelId !== undefined && snippet.channelId !== null) ? String(snippet.channelId) : "",
+      publishedAt: (snippet.publishedAt !== undefined && snippet.publishedAt !== null) ? String(snippet.publishedAt) : new Date().toISOString(),
+      tags: Array.isArray(snippet.tags) ? snippet.tags.map((tag: any) => String(tag)) : []
+    };
+  }
+
   private createVideoAnalysis(video: any): VideoAnalysis {
-    const uploadDate = new Date(video.snippet?.publishedAt || "");
+    // Validate video object
+    if (!video || typeof video !== 'object' || !video.id) {
+      throw new Error('Invalid video object: missing required video.id');
+    }
+
+    // Safely extract snippet data
+    const snippetData = this.safelyExtractSnippet(video);
+    
+    // Safely extract statistics
+    const stats = this.safelyExtractStatistics(video);
+    
+    // Calculate upload date and derived values
+    const uploadDate = new Date(snippetData.publishedAt);
     const now = new Date();
     const daysSinceUpload = Math.floor(
       (now.getTime() - uploadDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     const monthsSinceUpload = Math.max(1, Math.floor(daysSinceUpload / 30));
 
-    const duration = this.parseDuration(
-      video.contentDetails?.duration || "PT0S",
-    );
-    const views = parseInt(video.statistics?.viewCount || "0");
+    // Safely extract and parse duration
+    let durationString = "PT0S";
+    if (video.contentDetails && typeof video.contentDetails === 'object' && 
+        video.contentDetails.duration !== undefined && video.contentDetails.duration !== null) {
+      durationString = String(video.contentDetails.duration);
+    }
+    const duration = this.parseDuration(durationString);
 
     return {
       videoId: video.id,
       videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
-      title: video.snippet?.title || "",
-      channelName: video.snippet?.channelTitle || "",
-      channelId: video.snippet?.channelId || "",
-      channelUrl: `https://www.youtube.com/channel/${video.snippet?.channelId}`,
-      uploadDate: uploadDate.toLocaleDateString(),
-      views,
-      likes: parseInt(video.statistics?.likeCount || "0"),
-      comments: parseInt(video.statistics?.commentCount || "0"),
+      title: snippetData.title,
+      channelName: snippetData.channelTitle,
+      channelId: snippetData.channelId,
+      channelUrl: snippetData.channelId ? `https://www.youtube.com/channel/${snippetData.channelId}` : "",
+      uploadDate: snippetData.publishedAt,
+      views: stats.viewCount,
+      likes: stats.likeCount,
+      comments: stats.commentCount,
       duration,
       durationRange: this.getDurationRange(duration),
       durationRangeSequence: this.getDurationRangeSequence(duration),
       daysSinceUpload,
       monthsSinceUpload,
-      viewsPerMonth: views / monthsSinceUpload,
-      tags: video.snippet?.tags || [],
+      viewsPerMonth: stats.viewCount / monthsSinceUpload,
+      tags: snippetData.tags,
     };
   }
 
@@ -254,25 +326,25 @@ export default class AnalyzeChannelVideosTool
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
     if (!match) return 0;
 
-    const hours = parseInt(match[1]) || 0;
-    const minutes = parseInt(match[2]) || 0;
-    const seconds = parseInt(match[3]) || 0;
+    const hours = match[1] ? parseInt(match[1]) : 0;
+    const minutes = match[2] ? parseInt(match[2]) : 0;
+    const seconds = match[3] ? parseInt(match[3]) : 0;
 
     return hours * 60 + minutes + seconds / 60;
   }
 
   private getDurationRange(duration: number): string {
-    if (duration <= 1) return "0-1 min";
-    if (duration <= 10) return "1-10 min";
-    if (duration <= 30) return "10-30 min";
-    return "30+ min";
+    if (DURATION_RANGES.length === 0) return "Unknown";
+    const range = DURATION_RANGES.find(r => duration <= r.maxMinutes);
+    const defaultRange = DURATION_RANGES[DURATION_RANGES.length - 1];
+    return range ? range.label : (defaultRange?.label || "Unknown");
   }
 
   private getDurationRangeSequence(duration: number): number {
-    if (duration <= 1) return 0;
-    if (duration <= 10) return 1;
-    if (duration <= 30) return 2;
-    return 3;
+    if (DURATION_RANGES.length === 0) return 0;
+    const range = DURATION_RANGES.find(r => duration <= r.maxMinutes);
+    const defaultRange = DURATION_RANGES[DURATION_RANGES.length - 1];
+    return range ? range.sequence : (defaultRange?.sequence || 0);
   }
 
   private shouldIncludeVideo(
@@ -365,22 +437,151 @@ export default class AnalyzeChannelVideosTool
     });
   }
 
-  private createBatchedResponse(videos: VideoAnalysis[]): BatchedVideoAnalysis {
-    const batchSize = 50;
-    const batches = [];
-
-    // Create batches of 50 videos each
-    for (let i = 0; i < videos.length; i += batchSize) {
-      batches.push({
-        batchNumber: Math.floor(i / batchSize) + 1,
-        videos: videos.slice(i, i + batchSize),
-      });
+  private formatChannelAnalysis(videos: VideoAnalysis[], options: ChannelAnalysisOptions): string {
+    if (videos.length === 0) {
+      return ResponseFormatters.sectionHeader("📊", "No videos found matching the specified criteria");
     }
 
-    return {
-      totalVideos: videos.length,
-      batchCount: batches.length,
-      batches,
-    };
+    let output = ResponseFormatters.sectionHeader("📊", "Channel Videos Analysis");
+    
+    // Summary statistics
+    const totalViews = videos.reduce((sum, v) => sum + v.views, 0);
+    const totalLikes = videos.reduce((sum, v) => sum + v.likes, 0);
+    const totalComments = videos.reduce((sum, v) => sum + v.comments, 0);
+    const avgViews = Math.round(totalViews / videos.length);
+    const avgLikes = Math.round(totalLikes / videos.length);
+    const avgComments = Math.round(totalComments / videos.length);
+
+    output += ResponseFormatters.keyValue("Total Videos Analyzed", videos.length.toString());
+    output += ResponseFormatters.keyValue("Sort Order", options.sortBy || "uploadDate");
+    if (options.videoDurationFilter && options.videoDurationFilter !== "any") {
+      output += ResponseFormatters.keyValue("Duration Filter", options.videoDurationFilter);
+    }
+    output += "\n";
+
+    output += ResponseFormatters.sectionHeader("📈", "Overall Statistics");
+    output += ResponseFormatters.keyValue("Total Views", ResponseFormatters.formatViewCount(totalViews));
+    output += ResponseFormatters.keyValue("Average Views", ResponseFormatters.formatViewCount(avgViews));
+    output += ResponseFormatters.keyValue("Total Likes", ResponseFormatters.formatNumber(totalLikes));
+    output += ResponseFormatters.keyValue("Average Likes", ResponseFormatters.formatNumber(avgLikes));
+    output += ResponseFormatters.keyValue("Total Comments", ResponseFormatters.formatNumber(totalComments));
+    output += ResponseFormatters.keyValue("Average Comments", ResponseFormatters.formatNumber(avgComments));
+    output += "\n";
+
+    // Duration distribution
+    const durationCounts = this.calculateDurationDistribution(videos);
+    if (durationCounts.size > 0) {
+      output += ResponseFormatters.sectionHeader("⏱️", "Duration Distribution");
+      durationCounts.forEach((count, range) => {
+        const percentage = ((count / videos.length) * 100).toFixed(1);
+        output += ResponseFormatters.keyValue(range, `${count} videos (${percentage}%)`);
+      });
+      output += "\n";
+    }
+
+    // Top performing videos (show top 10)
+    output += ResponseFormatters.sectionHeader("🏆", "Top 10 Videos");
+    const topVideos = videos.slice(0, 10);
+    
+    topVideos.forEach((video, index) => {
+      output += ResponseFormatters.numberedItem(index + 1, `**${video.title}**`);
+      output += ResponseFormatters.keyValue("Views", ResponseFormatters.formatViewCount(video.views), 3);
+      output += ResponseFormatters.keyValue("Uploaded", new Date(video.uploadDate).toLocaleDateString(), 3);
+      output += ResponseFormatters.keyValue("Duration", `${Math.round(video.duration)} min`, 3);
+      output += ResponseFormatters.keyValue("Engagement", `${ResponseFormatters.formatNumber(video.likes)} likes, ${ResponseFormatters.formatNumber(video.comments)} comments`, 3);
+      if (video.viewsPerMonth > 0) {
+        output += ResponseFormatters.keyValue("Views/Month", ResponseFormatters.formatNumber(Math.round(video.viewsPerMonth)), 3);
+      }
+      output += ResponseFormatters.keyValue("URL", video.videoUrl, 3);
+      output += "\n";
+    });
+
+    // Performance insights
+    output += ResponseFormatters.sectionHeader("💡", "Performance Insights");
+    const insights = this.generateInsights(videos);
+    insights.forEach(insight => {
+      output += ResponseFormatters.bulletPoint("", insight);
+    });
+
+    return output;
+  }
+
+  private calculateDurationDistribution(videos: VideoAnalysis[]): Map<string, number> {
+    const distribution = new Map<string, number>();
+    
+    videos.forEach(video => {
+      const range = video.durationRange;
+      distribution.set(range, (distribution.get(range) || 0) + 1);
+    });
+
+    // Sort by duration sequence
+    return new Map([...distribution.entries()].sort((a, b) => {
+      const sequenceA = this.getDurationRangeSequence(this.parseDurationRangeToMinutes(a[0]));
+      const sequenceB = this.getDurationRangeSequence(this.parseDurationRangeToMinutes(b[0]));
+      return sequenceA - sequenceB;
+    }));
+  }
+
+  private parseDurationRangeToMinutes(range: string): number {
+    if (DURATION_RANGES.length === 0) return 0;
+    const durationRange = DURATION_RANGES.find(r => r.label === range);
+    const defaultRange = DURATION_RANGES[DURATION_RANGES.length - 1];
+    return durationRange ? durationRange.avgMinutes : (defaultRange?.avgMinutes || 0);
+  }
+
+  private generateInsights(videos: VideoAnalysis[]): string[] {
+    const insights: string[] = [];
+    
+    // Best performing duration range
+    const durationPerformance = new Map<string, { views: number; count: number }>();
+    videos.forEach(video => {
+      const range = video.durationRange;
+      const current = durationPerformance.get(range) || { views: 0, count: 0 };
+      durationPerformance.set(range, {
+        views: current.views + video.views,
+        count: current.count + 1
+      });
+    });
+
+    let bestDuration = "";
+    let bestAvgViews = 0;
+    durationPerformance.forEach((data, range) => {
+      const avgViews = data.views / data.count;
+      if (avgViews > bestAvgViews) {
+        bestAvgViews = avgViews;
+        bestDuration = range;
+      }
+    });
+
+    if (bestDuration) {
+      insights.push(`Videos in the ${bestDuration} range perform best with an average of ${ResponseFormatters.formatViewCount(Math.round(bestAvgViews))}`);
+    }
+
+    // Upload frequency insight
+    if (videos.length >= 10) {
+      const recentVideos = videos.filter(v => v.daysSinceUpload <= 30).length;
+      const uploadFrequency = recentVideos > 0 ? `${recentVideos} videos in the last 30 days` : "No recent uploads";
+      insights.push(`Upload frequency: ${uploadFrequency}`);
+    }
+
+    // Engagement rate
+    const avgEngagementRate = videos.reduce((sum, v) => {
+      const engagementRate = v.views > 0 ? ((v.likes + v.comments) / v.views) * 100 : 0;
+      return sum + engagementRate;
+    }, 0) / videos.length;
+    
+    insights.push(`Average engagement rate: ${avgEngagementRate.toFixed(2)}% (likes + comments / views)`);
+
+    // Views trend
+    const recentVideos = videos.filter(v => v.monthsSinceUpload <= 3);
+    const olderVideos = videos.filter(v => v.monthsSinceUpload > 3);
+    if (recentVideos.length > 0 && olderVideos.length > 0) {
+      const recentAvgViews = recentVideos.reduce((sum, v) => sum + v.views, 0) / recentVideos.length;
+      const olderAvgViews = olderVideos.reduce((sum, v) => sum + v.views, 0) / olderVideos.length;
+      const trend = recentAvgViews > olderAvgViews ? "improving" : "declining";
+      insights.push(`Channel performance trend: ${trend} (recent vs older videos)`);
+    }
+
+    return insights;
   }
 }

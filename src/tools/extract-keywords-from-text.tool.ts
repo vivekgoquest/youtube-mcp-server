@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, KeywordData } from "../types.js";
+import type { ToolResponse, KeywordData } from "../types.js";
 import { TextProcessor } from "../utils/text-processing.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
@@ -16,7 +16,6 @@ export const metadata: ToolMetadata = {
   name: "extract_keywords_from_text",
   description:
     "Extract keywords from ANY text using advanced NLP - perfect for scripts, competitor descriptions, or content ideas. Finds single words AND multi-word phrases (up to 5 words). Use this to: analyze competitor video descriptions, process blog posts for video ideas, extract keywords from transcripts. Returns keywords ranked by importance with frequency counts. Handles text up to 50,000 words. SMART: filters out stop words, finds semantic phrases, identifies trending terms.",
-  quotaCost: 0,
   inputSchema: {
     type: "object",
     properties: {
@@ -58,23 +57,17 @@ export const metadata: ToolMetadata = {
 export default class ExtractKeywordsFromTextTool
   implements ToolRunner<ExtractKeywordsFromTextOptions, KeywordData[]>
 {
-  constructor(private client: YouTubeClient) {}
+  constructor(_client: YouTubeClient) {}
 
   async run(
     options: ExtractKeywordsFromTextOptions,
   ): Promise<ToolResponse<KeywordData[]>> {
-    const startTime = Date.now();
 
     try {
       if (!options.text || options.text.trim() === "") {
         return {
           success: false,
           error: "Text content is required",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "keyword-extraction-text",
-          },
         };
       }
 
@@ -130,18 +123,9 @@ export default class ExtractKeywordsFromTextTool
       return {
         success: true,
         data: finalKeywords,
-        metadata: {
-          quotaUsed: 0, // No API calls for text processing
-          requestTime: Date.now() - startTime,
-          source: "keyword-extraction-text",
-        },
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<KeywordData[]>(error, {
-        quotaUsed: 0,
-        startTime,
-        source: "keyword-extraction-text",
-      });
+      return ErrorHandler.handleToolError<KeywordData[]>(error);
     }
   }
 }

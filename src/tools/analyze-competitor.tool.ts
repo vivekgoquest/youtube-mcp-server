@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 import {
   YOUTUBE_API_BATCH_SIZE,
@@ -60,7 +60,6 @@ export const metadata: ToolMetadata = {
   name: "analyze_competitor",
   description:
     "DEEP DIVE into any competitor channel to uncover their winning strategies. Analyzes upload patterns, best performing videos, content themes, and engagement metrics. Use this to COPY what works and avoid what doesn't. Returns: upload schedule patterns, top 10 performing videos, content categories they dominate, average views/engagement, and specific gaps you can exploit. Input channel ID from search_channels. Essential for competitive intelligence.",
-  quotaCost: 2,
   inputSchema: {
     type: "object",
     properties: {
@@ -124,8 +123,6 @@ export default class AnalyzeCompetitorTool
   async run(
     options: CompetitorAnalysisOptions,
   ): Promise<ToolResponse<CompetitorAnalysis>> {
-    const startTime = Date.now();
-
     try {
       const maxVideos = options.maxVideos || 100;
 
@@ -147,6 +144,10 @@ export default class AnalyzeCompetitorTool
       }
 
       const channel = channelResponse.items[0];
+      if (!channel) {
+        throw new Error(`Channel ${options.channelId} not found`);
+      }
+      
       const uploadsPlaylistId =
         channel.contentDetails?.relatedPlaylists?.uploads;
 
@@ -206,9 +207,9 @@ export default class AnalyzeCompetitorTool
 
       const analysis: CompetitorAnalysis = {
         channelId: options.channelId,
-        channelName: channel.snippet?.title || "",
-        subscriberCount: parseInt(channel.statistics?.subscriberCount || "0"),
-        videoCount: parseInt(channel.statistics?.videoCount || "0"),
+        channelName: channel?.snippet?.title || "",
+        subscriberCount: parseInt(channel?.statistics?.subscriberCount || "0"),
+        videoCount: parseInt(channel?.statistics?.videoCount || "0"),
         averageViews,
         uploadFrequency,
         topPerformingVideos,
@@ -222,21 +223,21 @@ export default class AnalyzeCompetitorTool
       };
 
       // Add branding analysis if brandingSettings included
-      if (channel.brandingSettings) {
+      if (channel?.brandingSettings) {
         analysis.brandingAnalysis = this.analyzeBrandingStrategy(
           channel.brandingSettings,
         );
       }
 
       // Add topic categories if topicDetails included
-      if (channel.topicDetails) {
+      if (channel?.topicDetails) {
         analysis.topicCategories = this.categorizeChannelTopics(
           channel.topicDetails,
         );
       }
 
       // Add network analysis if requested
-      const channelSettings = channel.brandingSettings?.channel as any;
+      const channelSettings = channel?.brandingSettings?.channel as any;
       if (
         options.includeNetworkAnalysis !== false &&
         channelSettings?.featuredChannelsUrls
@@ -256,7 +257,7 @@ export default class AnalyzeCompetitorTool
       }
 
       // Add compliance status if auditDetails included
-      if (channel.auditDetails) {
+      if (channel?.auditDetails) {
         analysis.complianceStatus = this.assessComplianceRisk(
           channel.auditDetails,
         );
@@ -265,16 +266,9 @@ export default class AnalyzeCompetitorTool
       return {
         success: true,
         data: analysis,
-        metadata: {
-          quotaUsed: 2, // Fixed quota cost as declared in metadata
-          requestTime: Date.now() - startTime,
-          source: "youtube-competitor-analysis",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<CompetitorAnalysis>(error, {
-        quotaUsed: 2, // Fixed quota cost as declared in metadata
-        startTime,
         source: "youtube-competitor-analysis",
       });
     }
@@ -342,7 +336,8 @@ export default class AnalyzeCompetitorTool
 
     for (const video of videos) {
       const publishedAt = new Date(video.snippet?.publishedAt || "");
-      const dayName = dayNames[publishedAt.getDay()];
+      const dayIndex = publishedAt.getDay();
+      const dayName = dayNames[dayIndex] || "Unknown";
       const hour = publishedAt.getHours();
 
       daysOfWeek[dayName] = (daysOfWeek[dayName] || 0) + 1;
@@ -389,8 +384,13 @@ export default class AnalyzeCompetitorTool
       .map((v) => new Date(v.snippet?.publishedAt || ""))
       .sort((a, b) => b.getTime() - a.getTime());
 
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    
+    if (!firstDate || !lastDate) return "Insufficient data";
+    
     const daysBetween =
-      (dates[0].getTime() - dates[dates.length - 1].getTime()) /
+      (firstDate.getTime() - lastDate.getTime()) /
       (1000 * 60 * 60 * 24);
     const averageDaysBetween = daysBetween / (videos.length - 1);
 
@@ -418,19 +418,21 @@ export default class AnalyzeCompetitorTool
   }
 
   private categorizeChannelTopics(topicDetails: any): string[] {
-    if (!topicDetails.topicCategories) return [];
+    if (!topicDetails?.topicCategories) return [];
 
     return topicDetails.topicCategories.map((url: string) => {
       // Extract topic name from Wikipedia URL
       const parts = url.split("/");
-      const topicName = parts[parts.length - 1].replace(/_/g, " ");
+      const lastPart = parts[parts.length - 1];
+      if (!lastPart) return "";
+      const topicName = lastPart.replace(/_/g, " ");
       return topicName;
     });
   }
 
   private async mapChannelNetwork(
     featuredChannelUrls: string[],
-    channel: any,
+    _channel: any,
   ): Promise<any> {
     const featuredChannels = featuredChannelUrls.map((url) => ({
       url,
@@ -449,7 +451,7 @@ export default class AnalyzeCompetitorTool
 
     for (const pattern of patterns) {
       const match = url.match(pattern);
-      if (match) return match[1];
+      if (match && match[1]) return match[1];
     }
     return null;
   }
@@ -510,10 +512,21 @@ export default class AnalyzeCompetitorTool
   }
 
   private assessComplianceRisk(auditDetails: any): any {
+    // Default to true when status is undefined, assuming good standing unless explicitly flagged
+    // This follows the principle of "innocent until proven guilty" for compliance status
+    const communityGuidelinesGoodStanding = 
+      auditDetails.communityGuidelinesGoodStanding !== undefined 
+        ? auditDetails.communityGuidelinesGoodStanding 
+        : true;
+    
+    const copyrightStrikesGoodStanding = 
+      auditDetails.copyrightStrikesGoodStanding !== undefined 
+        ? auditDetails.copyrightStrikesGoodStanding 
+        : true;
+
     return {
-      communityGuidelinesGoodStanding:
-        auditDetails.communityGuidelinesGoodStanding,
-      copyrightStrikesGoodStanding: auditDetails.copyrightStrikesGoodStanding,
+      communityGuidelinesGoodStanding,
+      copyrightStrikesGoodStanding,
     };
   }
 }

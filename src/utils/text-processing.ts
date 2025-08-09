@@ -1,4 +1,4 @@
-import { KeywordExtractionOptions, KeywordData } from "../types.js";
+import type { KeywordExtractionOptions } from "../types.js";
 import nlp from "compromise";
 
 export class TextProcessor {
@@ -312,7 +312,7 @@ export class TextProcessor {
    */
   static removeStopWords(
     keywords: string[],
-    language: string = "en",
+    _language: string = "en",
   ): string[] {
     return keywords.filter((keyword) => {
       const words = keyword.toLowerCase().split(/\s+/);

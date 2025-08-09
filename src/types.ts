@@ -129,6 +129,127 @@ export interface Playlist {
   };
 }
 
+export interface CommentSnippet {
+  authorDisplayName: string;
+  authorProfileImageUrl: string;
+  authorChannelUrl: string;
+  authorChannelId: {
+    value: string;
+  };
+  videoId?: string;
+  textDisplay: string;
+  textOriginal: string;
+  parentId?: string;
+  canRate: boolean;
+  viewerRating: string;
+  likeCount: number;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+export interface Comment {
+  kind: string;
+  etag: string;
+  id: string;
+  snippet: CommentSnippet;
+}
+
+export interface ActivitySnippet {
+  publishedAt: string;
+  channelId: string;
+  title: string;
+  description: string;
+  thumbnails: {
+    default: Thumbnail;
+    medium: Thumbnail;
+    high: Thumbnail;
+    standard?: Thumbnail;
+    maxres?: Thumbnail;
+  };
+  channelTitle: string;
+  type: string;
+  groupId?: string;
+}
+
+export interface ActivityContentDetails {
+  upload?: {
+    videoId: string;
+  };
+  like?: {
+    resourceId: {
+      kind: string;
+      videoId: string;
+    };
+  };
+  favorite?: {
+    resourceId: {
+      kind: string;
+      videoId: string;
+    };
+  };
+  comment?: {
+    resourceId: {
+      kind: string;
+      videoId?: string;
+      channelId?: string;
+    };
+  };
+  subscription?: {
+    resourceId: {
+      kind: string;
+      channelId: string;
+    };
+  };
+  playlistItem?: {
+    resourceId: {
+      kind: string;
+      videoId: string;
+    };
+    playlistId: string;
+    playlistItemId: string;
+  };
+  recommendation?: {
+    resourceId: {
+      kind: string;
+      videoId?: string;
+      channelId?: string;
+    };
+    reason: string;
+    seedResourceId: {
+      kind: string;
+      videoId?: string;
+      channelId?: string;
+      playlistId?: string;
+    };
+  };
+  social?: {
+    type: string;
+    resourceId: {
+      kind: string;
+      videoId?: string;
+      channelId?: string;
+      playlistId?: string;
+    };
+    author: string;
+    referenceUrl: string;
+    imageUrl: string;
+  };
+  channelItem?: {
+    resourceId: {
+      kind: string;
+      channelId: string;
+    };
+  };
+}
+
+export interface Activity {
+  kind: string;
+  etag: string;
+  id: string;
+  snippet: ActivitySnippet;
+  contentDetails: ActivityContentDetails;
+}
+
 export interface SearchResult {
   kind: string;
   etag: string;
@@ -233,19 +354,83 @@ export interface PlaylistListParams {
   pageToken?: string;
 }
 
-// Tool response types for workflow chaining
-export interface ToolRequestMetadata {
-  quotaUsed: number;
-  requestTime: number;
-  source: string;
-  estimatedQuota?: number;
+// Channel list by category parameters
+export interface ChannelsByCategoryParams {
+  part: string;
+  categoryId: string;
+  maxResults?: number;
+  pageToken?: string;
 }
 
-export interface ToolResponse<T = any> {
+// Comment list parameters
+export interface CommentListParams {
+  part: string;
+  parentId: string;
+  maxResults?: number;
+  pageToken?: string;
+  textFormat?: "html" | "plainText";
+}
+
+// Activity list parameters
+export interface ActivityListParams {
+  part: string;
+  channelId: string;
+  maxResults?: number;
+  pageToken?: string;
+  publishedAfter?: string;
+  publishedBefore?: string;
+}
+
+// Get all videos of a channel parameters
+export interface GetAllVideosOfChannelParams {
+  channelId: string;
+  maxTotalVideos?: number;
+  part?: string;
+  sortBy?: VideoSortBy;
+  filterBy?: VideoFilter;
+}
+
+export type VideoSortBy = "date_asc" | "date_desc" | "title_asc" | "title_desc";
+
+export interface VideoFilter {
+  titleContains?: string;
+  publishedAfter?: string;
+  publishedBefore?: string;
+}
+
+export interface ChannelSectionsParams {
+  part: string;
+  channelId?: string;
+  id?: string;
+  mine?: boolean;
+}
+
+export interface CommentThreadsParams {
+  part: string;
+  videoId?: string;
+  channelId?: string;
+  allThreadsRelatedToChannelId?: string;
+  maxResults?: number;
+  order?: "time" | "relevance";
+  pageToken?: string;
+}
+
+export interface PlaylistItemsParams {
+  part: string;
+  playlistId: string;
+  maxResults?: number;
+  pageToken?: string;
+}
+
+// Tool response types for workflow chaining
+export interface ToolRequestMetadata {
+  source: string;
+}
+
+export interface ToolResponse<T = string> {
   success: boolean;
   data?: T;
   error?: string;
-  metadata?: ToolRequestMetadata;
 }
 
 // Search tool parameters

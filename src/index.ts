@@ -28,7 +28,7 @@ class YouTubeMCPServerHandler {
 
   constructor() {
     // Initialize YouTube API client
-    const apiKey = process.env.YOUTUBE_API_KEY;
+    const apiKey = process.env['YOUTUBE_API_KEY'];
     if (!apiKey) {
       throw new Error(
         "YOUTUBE_API_KEY environment variable is required. " +
@@ -74,7 +74,7 @@ class YouTubeMCPServerHandler {
       const { name, arguments: args } = request.params;
 
       // Debug logging
-      if (process.env.DEBUG_CONSOLE === "true") {
+      if (process.env['DEBUG_CONSOLE'] === "true") {
         console.error(
           "Tool call request:",
           name,
@@ -168,7 +168,7 @@ class YouTubeMCPServerHandler {
     await this.mcpServer.connect(transport);
 
     // Only output debug messages if DEBUG_CONSOLE is enabled
-    if (process.env.DEBUG_CONSOLE === "true") {
+    if (process.env['DEBUG_CONSOLE'] === "true") {
       console.error("YouTube MCP Server started successfully");
       console.error(
         `Available tools: ${this.youtubeServer.listTools().length}`,
@@ -180,14 +180,14 @@ class YouTubeMCPServerHandler {
 
 // Error handling (debug cleanup temporarily disabled)
 process.on("SIGINT", async () => {
-  if (process.env.DEBUG_CONSOLE === "true") {
+  if (process.env['DEBUG_CONSOLE'] === "true") {
     console.error("Shutting down YouTube MCP Server...");
   }
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  if (process.env.DEBUG_CONSOLE === "true") {
+  if (process.env['DEBUG_CONSOLE'] === "true") {
     console.error("Shutting down YouTube MCP Server...");
   }
   process.exit(0);
@@ -212,10 +212,10 @@ import { fileURLToPath } from "url";
 import { resolve } from "path";
 
 const currentFile = fileURLToPath(import.meta.url);
-const runFile = resolve(process.argv[1]);
+const runFile = process.argv[1] ? resolve(process.argv[1]) : "";
 
 // Only start if this is the main file being executed
-if (currentFile === runFile || process.argv[1].endsWith("index.js")) {
+if (currentFile === runFile || (process.argv[1] && process.argv[1].endsWith("index.js"))) {
   main().catch((error) => {
     console.error("Unhandled error:", error);
     process.exit(1);

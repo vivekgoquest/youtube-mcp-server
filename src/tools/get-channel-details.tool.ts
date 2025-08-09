@@ -1,7 +1,8 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, Channel } from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
+import type { ToolResponse } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 import { DEFAULT_CHANNEL_PARTS } from "../config/constants.js";
 
 interface GetChannelDetailsOptions {
@@ -17,7 +18,6 @@ export const metadata: ToolMetadata = {
   name: "get_channel_details",
   description:
     "Get detailed channel information including branding analysis (keywords, featured channels), topic categorization, compliance status, content ownership details, multilingual support, and privacy settings.",
-  quotaCost: 1,
   inputSchema: {
     type: "object",
     properties: {
@@ -69,25 +69,18 @@ export const metadata: ToolMetadata = {
   },
 };
 
-export default class GetChannelDetailsTool
-  implements ToolRunner<GetChannelDetailsOptions, Channel>
-{
-  constructor(private client: YouTubeClient) {}
+export default class GetChannelDetailsTool extends Tool<GetChannelDetailsOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-  async run(options: GetChannelDetailsOptions): Promise<ToolResponse<Channel>> {
-    const startTime = Date.now();
-    try {
-      if (!options.channelId) {
-        return {
-          success: false,
-          error: "Channel ID parameter is required",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: 0,
-            source: "get-channel-details",
-          },
-        };
-      }
+  async execute(options: GetChannelDetailsOptions): Promise<ToolResponse<string>> {
+    if (!options.channelId) {
+      return {
+        success: false,
+        error: "Channel ID parameter is required",
+      };
+    }
 
       // Handle part selection with new options
       let parts: string[] = [];
@@ -138,31 +131,88 @@ export default class GetChannelDetailsTool
         return {
           success: false,
           error: `Channel with ID '${options.channelId}' not found`,
-          metadata: {
-            quotaUsed: 1,
-            requestTime: 0,
-            source: "get-channel-details",
-          },
         };
       }
 
       const channel = result.items[0];
+      if (!channel) {
+        return {
+          success: false,
+          error: `Channel with ID '${options.channelId}' not found`,
+        };
+      }
+
+      // Format the channel details
+      let output = ResponseFormatters.sectionHeader("📺", "Channel Details");
+      output += "\n";
+
+      if (channel.snippet) {
+        if (channel.snippet.title) {
+          output += ResponseFormatters.keyValue("Channel Name", channel.snippet.title);
+        }
+        if (channel.snippet.description) {
+          output += ResponseFormatters.keyValue("Description", ResponseFormatters.truncateText(channel.snippet.description, 300));
+        }
+        if (channel.snippet.publishedAt) {
+          output += ResponseFormatters.keyValue("Created", ResponseFormatters.formatDate(channel.snippet.publishedAt));
+        }
+        if (channel.snippet.country) {
+          output += ResponseFormatters.keyValue("Country", channel.snippet.country);
+        }
+        output += "\n";
+      }
+
+      if (channel.statistics) {
+        output += ResponseFormatters.sectionHeader("📊", "Statistics");
+        if (channel.statistics.subscriberCount) {
+          output += ResponseFormatters.bulletPoint("Subscribers", ResponseFormatters.formatNumber(channel.statistics.subscriberCount));
+        }
+        if (channel.statistics.viewCount) {
+          output += ResponseFormatters.bulletPoint("Total Views", ResponseFormatters.formatNumber(channel.statistics.viewCount));
+        }
+        if (channel.statistics.videoCount) {
+          output += ResponseFormatters.bulletPoint("Videos", ResponseFormatters.formatNumber(channel.statistics.videoCount));
+        }
+        output += "\n";
+      }
+
+      if (channel.contentDetails?.relatedPlaylists) {
+        output += ResponseFormatters.sectionHeader("📋", "Playlists");
+        const playlists = channel.contentDetails.relatedPlaylists;
+        if (playlists.uploads) {
+          output += ResponseFormatters.bulletPoint("Uploads Playlist", playlists.uploads);
+        }
+        output += "\n";
+      }
+
+      if (channel.brandingSettings) {
+        if (channel.brandingSettings.channel?.keywords) {
+          output += ResponseFormatters.sectionHeader("🏷️", "Channel Keywords");
+          output += ResponseFormatters.keyValue("Keywords", channel.brandingSettings.channel.keywords);
+          output += "\n";
+        }
+      }
+
+      if (channel.topicDetails?.topicCategories) {
+        output += ResponseFormatters.sectionHeader("📚", "Topic Categories");
+        channel.topicDetails.topicCategories.forEach((topic: string) => {
+          const topicName = topic.split("/").pop()?.replace(/_/g, " ");
+          output += ResponseFormatters.bulletPoint("Topic", topicName || topic);
+        });
+        output += "\n";
+      }
+
+      output += ResponseFormatters.sectionHeader("🔗", "Links");
+      if (channel.id) {
+        output += ResponseFormatters.bulletPoint("Channel URL", ResponseFormatters.getYouTubeUrl("channel", channel.id));
+      }
+      if (channel.snippet?.customUrl) {
+        output += ResponseFormatters.bulletPoint("Custom URL", `https://www.youtube.com/${channel.snippet.customUrl}`);
+      }
 
       return {
         success: true,
-        data: channel,
-        metadata: {
-          quotaUsed: 1,
-          requestTime: 0,
-          source: "get-channel-details",
-        },
+        data: output,
       };
-    } catch (error) {
-      return ErrorHandler.handleToolError<Channel>(error, {
-        quotaUsed: 1,
-        startTime,
-        source: "get-channel-details",
-      });
-    }
   }
 }

@@ -15,35 +15,18 @@ out/
 *.js.map
 *.d.ts.map
 
-# Test compiled artifacts (keep source .ts files only)
-tests/**/*.js
-tests/**/*.d.ts
-!tests/**/*.test.js
-!tests/**/*.spec.js
-
 # Package artifacts and generated reports
 *.tgz
 tool-discovery-report.json
-
-# Testing
-coverage/
-.nyc_output/
-test-artifacts/
-jest-timing.json
-test-results.log
-*.timing.log
-concurrent_test_*.log
 
 # Environment and config files
 .env
 .env.*
 .env.local
-.env.test
 .env.production
 
 # API Key Configuration
 youtube-api.local.json
-tests/youtube-api.local.json
 .claude/settings.local.json
 
 # IDE and editor files

@@ -18,21 +18,16 @@ const projectRoot = resolve(__dirname, "..");
 
 // Patterns for files and directories to clean up
 const CLEANUP_PATTERNS = {
-  // Temporary test files
+  // Temporary files
   files: [
-    /^\.write-test-.*$/,
-    /^write-test-.*$/,
-    /^debug-test-.*$/,
     /^temp-log-.*$/,
     /^synthetic-log-.*$/,
-    /^test-output-.*$/,
     /^debug-session-.*\.json$/,
     /^comprehensive-debug-.*$/,
     /^debug-monitor-.*$/,
     /.*\.tmp$/,
     /.*\.temp$/,
     /^\.temp-.*$/,
-    /^\.test-.*$/,
     /^\.debug-.*$/,
     /.*\.lock$/,
     /.*\.pid\.lock$/,
@@ -44,10 +39,7 @@ const CLEANUP_PATTERNS = {
 
   // Temporary directories
   directories: [
-    /^test-artifacts$/,
     /^synthetic-data$/,
-    /^temp-test-files$/,
-    /^test-logs$/,
     /^debug-session-.*$/,
   ],
 };
@@ -79,10 +71,9 @@ Examples:
   npm run cleanup -- --dry-run          # Pass arguments via npm
 
 This script removes:
-  - Temporary test files (.write-test-*, debug-test-*, etc.)
   - Debug session files (debug-session-*.json)
   - Synthetic log files (synthetic-log-*, temp-log-*)
-  - Test artifacts and temporary directories
+  - Temporary directories
   - Lock files and process files
   - Other development artifacts that may accumulate
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Enhanced restart script for YouTube MCP Server
-# Provides comprehensive workflow: build, test, Claude integration, and rollback
+# Provides comprehensive workflow: build, validate, Claude integration, and rollback
 # Usage: ./restart-claude-mcp.sh [--skip-build] [--help]
 
 set -Eeuo pipefail
@@ -74,7 +74,7 @@ USAGE:
 
 OPTIONS:
     --skip-build    Skip the build phase (useful for quick restarts)
-    --simple        Minimal restart workflow (no build, no tests, just restart)
+    --simple        Minimal restart workflow (no build, no validation, just restart)
     --help, -h      Show this help message
 
 DESCRIPTION:
@@ -83,8 +83,8 @@ DESCRIPTION:
     
     1. Backup of current installation
     2. Optional build and install phase
-    3. API health testing
-    4. MCP inspector testing
+    3. API health validation
+    4. MCP inspector validation
     5. Claude Desktop restart
     6. Rollback on failure
     7. Comprehensive status reporting
@@ -106,7 +106,7 @@ EXIT CODES:
     0   Success
     1   General error
     2   Build failure
-    3   Test failure
+    3   Validation failure
     4   Claude restart failure
 EOF
 }
@@ -249,91 +249,23 @@ build_and_install() {
     fi
 }
 
-# Parse test timing logs
-parse_test_timing_logs() {
-    local timing_summary=""
-    
-    # Parse bash script timing data from test-results.log
-    if [ -f "test-results.log" ]; then
-        local connectivity_time=$(grep "connectivity completed in" test-results.log | grep -o "[0-9]*s" | head -1)
-        local tool_discovery_time=$(grep "tool_discovery completed in" test-results.log | grep -o "[0-9]*s" | head -1)
-        local individual_tools_time=$(grep "individual_tools completed in" test-results.log | grep -o "[0-9]*s" | head -1)
-        local error_handling_time=$(grep "error_handling completed in" test-results.log | grep -o "[0-9]*s" | head -1)
-        local concurrency_time=$(grep "concurrency completed in" test-results.log | grep -o "[0-9]*s" | head -1)
-        
-        if [ -n "$connectivity_time" ] || [ -n "$tool_discovery_time" ] || [ -n "$individual_tools_time" ]; then
-            timing_summary="MCP Inspector Test Breakdown: "
-            [ -n "$connectivity_time" ] && timing_summary+="connectivity=${connectivity_time}, "
-            [ -n "$tool_discovery_time" ] && timing_summary+="tool_discovery=${tool_discovery_time}, "
-            [ -n "$individual_tools_time" ] && timing_summary+="individual_tools=${individual_tools_time}, "
-            [ -n "$error_handling_time" ] && timing_summary+="error_handling=${error_handling_time}, "
-            [ -n "$concurrency_time" ] && timing_summary+="concurrency=${concurrency_time}"
-            timing_summary=${timing_summary%, }  # Remove trailing comma
-        fi
-    fi
-    
-    echo "$timing_summary"
-}
 
-# Display timing summary
-display_timing_summary() {
-    local timing_data="$1"
-    
-    if [ -n "$timing_data" ]; then
-        echo ""
-        log "⏱️  Test Performance Summary" "$CYAN"
-        echo "======================================"
-        echo "$timing_data"
-        
-        # Check for slow phases
-        if echo "$timing_data" | grep -q "individual_tools.*[1-9][0-9]s\|individual_tools.*[3-9][0-9]s"; then
-            warning "WARNING: individual_tools phase appears slow (>10s threshold)"
-            info "Consider checking API quota limits or network connectivity"
-        fi
-        
-        # Parse Jest timing if available
-        if [ -f "jest-timing.json" ]; then
-            # Validate JSON file first
-            if ! jq empty jest-timing.json 2>/dev/null; then
-                warning "jest-timing.json is malformed or not valid JSON"
-                info "Skipping Jest timing data due to invalid JSON format"
-            else
-                local jest_total=$(jq -r '.totalTime // 0' jest-timing.json 2>/dev/null || echo "0")
-                local jest_count=$(jq -r '.testCount // 0' jest-timing.json 2>/dev/null || echo "0")
-                if [ "$jest_total" -gt 0 ]; then
-                    info "Jest Tests: ${jest_count} tests in ${jest_total}ms total"
-                    
-                    # Show slowest Jest tests
-                    local slowest_tests=$(jq -r '.slowestTests[]? | "\(.name): \(.duration)ms"' jest-timing.json 2>/dev/null | head -3)
-                    if [ -n "$slowest_tests" ]; then
-                        info "Slowest Jest tests:"
-                        echo "$slowest_tests" | while read -r line; do
-                            echo "    - $line"
-                        done
-                    fi
-                fi
-            fi
-        fi
-        
-        echo "======================================"
-    fi
-}
 
-# Test server functionality
-test_server() {
-    begin_timing "server_testing"
-    info "Starting server testing phase..."
+# Validate server functionality
+validate_server() {
+    begin_timing "server_validation"
+    info "Starting server validation phase..."
     
     # Pass through timing environment variables
     export LOG_TIMING="${LOG_TIMING:-true}"
     export SLOW_THRESHOLD_MS="${SLOW_THRESHOLD_MS:-5000}"
     
-    # Simple API key loading from tests/.env.test only
+    # Simple API key loading from .env.local only
     if [ -z "${YOUTUBE_API_KEY:-}" ]; then
-        local env_file="tests/.env.test"
+        local env_file=".env.local"
         
         if [ -f "$env_file" ]; then
-            # Source the .env.test file
+            # Source the .env.local file
             set -a
             source "$env_file"
             set +a
@@ -346,15 +278,15 @@ test_server() {
             fi
         else
             warning "API key file not found: $env_file - skipping API health check"
-            info "To enable API testing: cp tests/.env.test.template tests/.env.test"
+            info "To enable API validation: cp .env.local.template .env.local"
         fi
     fi
     
     # Test API health if API key is available
     if [ -n "${YOUTUBE_API_KEY:-}" ]; then
         begin_timing "api_health_check"
-        info "Testing API health..."
-        if npm run test:api-health; then
+        info "Checking API health..."
+        if npm run check:api-health; then
             success "API health check passed"
             add_status "API health check" "passed"
         else
@@ -367,45 +299,23 @@ test_server() {
         add_status "API health check" "skipped"
     fi
     
-    # Test tool discovery
-    begin_timing "tool_discovery_test"
-    info "Testing tool discovery..."
-    if npm run test:discovery; then
-        success "Tool discovery test passed"
+    # Check tool discovery
+    begin_timing "tool_discovery_check"
+    info "Checking tool discovery..."
+    if npm run check:discovery; then
+        success "Tool discovery check passed"
         add_status "Tool discovery" "passed"
     else
-        error "Tool discovery test failed"
+        error "Tool discovery check failed"
         add_status "Tool discovery" "failed"
-        end_timing "tool_discovery_test"
-        end_timing "server_testing"
+        end_timing "tool_discovery_check"
+        end_timing "server_validation"
         return 3
     fi
-    end_timing "tool_discovery_test"
+    end_timing "tool_discovery_check"
     
-    # Skip MCP inspector tests for now
-    # begin_timing "mcp_inspector_tests"
-    # info "Running MCP inspector tests..."
-    # if bash scripts/test-mcp-inspector.sh; then
-    #     success "MCP inspector tests passed"
-    #     add_status "MCP inspector tests" "passed"
-    #     
-    #     # Parse and display timing information
-    #     local timing_data=$(parse_test_timing_logs)
-    #     if [ -n "$timing_data" ]; then
-    #         display_timing_summary "$timing_data"
-    #     fi
-    # else
-    #     error "MCP inspector tests failed"
-    #     add_status "MCP inspector tests" "failed"
-    #     end_timing "mcp_inspector_tests"
-    #     end_timing "server_testing"
-    #     return 3
-    # fi
-    # end_timing "mcp_inspector_tests"
-    
-    warning "MCP inspector tests skipped"
-    add_status "MCP inspector tests" "skipped"
-    end_timing "server_testing"
+    info "Server validation completed"
+    end_timing "server_validation"
 }
 
 # Simple restart function (minimal workflow)
@@ -767,7 +677,7 @@ print_final_summary() {
             info "Troubleshooting:"
             echo "  • Check the FAILED items above"
             echo "  • Review logs in: $(get_claude_logs_dir)"
-            echo "  • Run individual tests: npm run test:api-health"
+            echo "  • Run individual checks: npm run check:api-health"
         fi
     else
         error "❌ Script failed with exit code $exit_code"
@@ -775,7 +685,7 @@ print_final_summary() {
         info "Troubleshooting:"
         case $exit_code in
             2) echo "  • Build failed - check build logs and dependencies" ;;
-            3) echo "  • Tests failed - check test output and API key" ;;
+            3) echo "  • Validation failed - check output and API key" ;;
             4) echo "  • Claude restart failed - check Claude installation" ;;
             *) echo "  • General error - check console output" ;;
         esac
@@ -833,10 +743,10 @@ main() {
         exit 2
     }
     
-    # Phase 3: Testing
-    phase="testing"
-    info "Phase 3: Testing server..."
-    test_server || {
+    # Phase 3: Validation
+    phase="validation"
+    info "Phase 3: Validating server..."
+    validate_server || {
         rollback
         exit 3
     }

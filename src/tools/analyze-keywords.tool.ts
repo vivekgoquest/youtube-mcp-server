@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, KeywordData, KeywordCluster } from "../types.js";
+import type { ToolResponse, KeywordData, KeywordCluster } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface AnalyzeKeywordsOptions {
@@ -24,14 +24,13 @@ interface KeywordAnalysisResult {
     level: "low" | "medium" | "high";
     topCompetitors: string[];
     gaps: string[];
-  };
+  } | undefined;
 }
 
 export const metadata: ToolMetadata = {
   name: "analyze_keywords",
   description:
     "Perform DEEP analysis on keywords to find winning opportunities. Evaluates search volume, competition difficulty, and generates related keywords. Use AFTER unified_search to analyze keywords from actual content. Returns: keyword scores (0-100), difficulty ratings, clusters of related terms, and specific recommendations. CRITICAL for: choosing video topics, optimizing titles/tags, finding low-competition keywords. Analyzes up to 100 keywords and identifies hidden opportunities.",
-  quotaCost: 100,
   inputSchema: {
     type: "object",
     properties: {
@@ -73,23 +72,15 @@ export default class AnalyzeKeywordsTool
   async run(
     options: AnalyzeKeywordsOptions,
   ): Promise<ToolResponse<KeywordAnalysisResult>> {
-    const startTime = Date.now();
-
     try {
       if (!options.keywords || options.keywords.length === 0) {
         return {
           success: false,
           error: "Keywords array is required and cannot be empty",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "keyword-analysis",
-          },
         };
       }
 
       const keywordData: KeywordData[] = [];
-      let quotaUsed = 0;
 
       // Analyze each keyword
       for (const keyword of options.keywords) {
@@ -101,8 +92,6 @@ export default class AnalyzeKeywordsTool
           maxResults: 50,
           order: "relevance",
         });
-
-        quotaUsed += 100; // Search quota cost
 
         // Calculate keyword metrics
         const frequency = searchResponse.items.length;
@@ -172,16 +161,9 @@ export default class AnalyzeKeywordsTool
       return {
         success: true,
         data: result,
-        metadata: {
-          quotaUsed,
-          requestTime: Date.now() - startTime,
-          source: "keyword-analysis",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<KeywordAnalysisResult>(error, {
-        quotaUsed: 0,
-        startTime,
         source: "keyword-analysis",
       });
     }
@@ -363,7 +345,7 @@ export default class AnalyzeKeywordsTool
   }
 
   private generateRecommendations(
-    keywords: KeywordData[],
+    _keywords: KeywordData[],
     insights: any,
   ): string[] {
     const recommendations: string[] = [];

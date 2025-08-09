@@ -1,4 +1,4 @@
-import { MCPPromptMessage } from "../../types.js";
+import type { MCPPromptMessage } from "../../types.js";
 
 /**
  * Prompt template for finding top channels in a specific niche

@@ -1,33 +1,24 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import {
-  ToolResponse,
-  SearchPlaylistsParams,
-  YouTubeApiResponse,
-  SearchResult,
-} from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
-import {
-  DEFAULT_PLAYLIST_PARTS,
-  YOUTUBE_API_BATCH_SIZE,
-} from "../config/constants.js";
+import type { ToolResponse, SearchPlaylistsParams } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 import { performEnrichment } from "../utils/search-enrichment.js";
 
 export const metadata: ToolMetadata = {
   name: "search_playlists",
   description:
     "Search for YouTube playlists with optional enrichment for full details. Playlist enrichment provides video counts, privacy status, and multilingual metadata.",
-  quotaCost: 100,
   inputSchema: {
     type: "object",
     properties: {
       query: {
         type: "string",
-        description: "Search query for playlists",
+        description: "Search query for playlists (required if channelId not provided)",
       },
       channelId: {
         type: "string",
-        description: "Restrict search to specific channel ID",
+        description: "Restrict search to a channel ID (required if query not provided)",
       },
       maxResults: {
         type: "integer",
@@ -64,88 +55,137 @@ export const metadata: ToolMetadata = {
   },
 };
 
-export default class SearchPlaylistsTool
-  implements
-    ToolRunner<
-      SearchPlaylistsParams & { enrichParts?: { playlist?: string[] } },
-      YouTubeApiResponse<SearchResult>
-    >
-{
-  constructor(private client: YouTubeClient) {}
+interface SearchPlaylistsOptions extends SearchPlaylistsParams {
+  enrichParts?: { playlist?: string[] | undefined } | undefined;
+}
 
-  async run(
-    params: SearchPlaylistsParams & { enrichParts?: { playlist?: string[] } },
-  ): Promise<ToolResponse<YouTubeApiResponse<SearchResult>>> {
-    const startTime = Date.now();
-    try {
-      if (!params.query && !params.channelId) {
-        return ErrorHandler.handleValidationError(
-          "Either query or channelId must be provided",
-          "search-playlists",
-        );
-      }
+export default class SearchPlaylistsTool extends Tool<SearchPlaylistsOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-      const searchParams = {
+  async execute(params: SearchPlaylistsOptions): Promise<ToolResponse<string>> {
+    const trimmedQuery = params.query?.trim();
+    const trimmedChannelId = params.channelId?.trim();
+    
+    if (!trimmedQuery && !trimmedChannelId) {
+      return {
+        success: false,
+        error: "Either query or channelId must be provided (non-empty)",
+      };
+    }
+
+      const searchParams: any = {
         part: "snippet",
         type: "playlist" as const,
-        q: params.query,
-        channelId: params.channelId,
         maxResults: params.maxResults || 25,
         order: params.order || "relevance",
-        regionCode: params.regionCode,
-        pageToken: params.pageToken,
       };
 
-      // Remove undefined values
-      Object.keys(searchParams).forEach((key) => {
-        if (searchParams[key as keyof typeof searchParams] === undefined) {
-          delete searchParams[key as keyof typeof searchParams];
-        }
-      });
+      // Only add optional properties if they have values
+      if (trimmedQuery) {
+        searchParams.q = trimmedQuery;
+      }
+      if (trimmedChannelId) {
+        searchParams.channelId = trimmedChannelId;
+      }
+      if (params.regionCode) {
+        searchParams.regionCode = params.regionCode;
+      }
+      if (params.pageToken) {
+        searchParams.pageToken = params.pageToken;
+      }
 
       const response = await this.client.search(searchParams);
 
       // Perform enrichment if requested
       let enrichedResponse = response;
-      let totalQuotaUsed = 100; // Base search quota
 
       if (params.enrichParts && response.items && response.items.length > 0) {
-        const quotaTracker = { quotaUsed: 0 };
-
+        // Build enrichParts object only with defined values
+        const enrichPartsObj: { playlist?: string[] } = {};
+        if (params.enrichParts.playlist) {
+          enrichPartsObj.playlist = params.enrichParts.playlist;
+        }
         // Use the consolidated enrichment function
         enrichedResponse = {
           ...response,
           items: await performEnrichment(
             this.client,
             response.items,
-            params.enrichParts,
+            enrichPartsObj,
             "playlist",
-            quotaTracker,
           ),
         };
+      }
 
-        totalQuotaUsed += quotaTracker.quotaUsed;
+      if (!enrichedResponse.items || enrichedResponse.items.length === 0) {
+        const searchContext = trimmedQuery 
+          ? `matching "${trimmedQuery}"`
+          : `for channel ${trimmedChannelId}`;
+        return {
+          success: false,
+          error: `No playlists found ${searchContext}`,
+        };
+      }
+
+      // Format the playlist search results
+      let output = ResponseFormatters.sectionHeader("🎵", `Playlist Search Results`);
+      
+      if (trimmedQuery) {
+        output += ResponseFormatters.keyValue("Query", trimmedQuery);
+      }
+      if (trimmedChannelId) {
+        output += ResponseFormatters.keyValue("Channel ID", trimmedChannelId);
+      }
+      output += ResponseFormatters.keyValue("Results", enrichedResponse.items.length.toString());
+      if (params.regionCode) {
+        output += ResponseFormatters.keyValue("Region", params.regionCode);
+      }
+      output += "\n";
+
+      enrichedResponse.items.forEach((item: any, index) => {
+        output += ResponseFormatters.numberedItem(index + 1, `**${item.snippet?.title || "Unknown Playlist"}**`);
+        
+        if (item.snippet?.channelTitle) {
+          output += ResponseFormatters.keyValue("Channel", item.snippet.channelTitle, 3);
+        }
+        
+        if (item.snippet?.publishedAt) {
+          output += ResponseFormatters.keyValue("Created", ResponseFormatters.formatDate(item.snippet.publishedAt), 3);
+        }
+        
+        if (item.snippet?.description) {
+          output += ResponseFormatters.keyValue("Description", ResponseFormatters.truncateText(item.snippet.description, 150), 3);
+        }
+        
+        // If enriched with content details
+        if (item.contentDetails?.itemCount !== undefined) {
+          output += ResponseFormatters.keyValue("Videos", item.contentDetails.itemCount.toString(), 3);
+        }
+        
+        // If enriched with status
+        if (item.status?.privacyStatus) {
+          output += ResponseFormatters.keyValue("Privacy", item.status.privacyStatus, 3);
+        }
+        
+        if (item.id?.playlistId) {
+          output += ResponseFormatters.keyValue("URL", ResponseFormatters.getYouTubeUrl("playlist", item.id.playlistId), 3);
+        }
+        
+        output += "\n";
+      });
+
+      // Add pagination info if available
+      if (enrichedResponse.nextPageToken) {
+        output += ResponseFormatters.sectionHeader("📄", "Pagination");
+        output += ResponseFormatters.keyValue("Next Page Token", enrichedResponse.nextPageToken);
+        output += ResponseFormatters.keyValue("Total Results", enrichedResponse.pageInfo?.totalResults?.toString() || "Unknown");
       }
 
       return {
         success: true,
-        data: enrichedResponse,
-        metadata: {
-          quotaUsed: totalQuotaUsed,
-          requestTime: 0,
-          source: "youtube-search-playlists",
-        },
+        data: output,
       };
-    } catch (error) {
-      return ErrorHandler.handleToolError<YouTubeApiResponse<SearchResult>>(
-        error,
-        {
-          quotaUsed: 100,
-          startTime,
-          source: "youtube-search-playlists",
-          defaultMessage: "Failed to search playlists",
-        },
-      );
-    }
   }
 }

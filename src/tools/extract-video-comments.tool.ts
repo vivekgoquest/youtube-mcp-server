@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface ExtractCommentsOptions {
@@ -48,7 +48,6 @@ export const metadata: ToolMetadata = {
   name: "extract_video_comments",
   description:
     "Extract and analyze comments from YouTube videos with enhanced capabilities including replies and author details. Use this to gather audience insights, identify common questions or concerns, and understand viewer reactions. Returns comment text, author details, like counts, reply threads, and optional sentiment analysis. Perfect for comprehensive engagement analysis, author profiling, and thread analysis.",
-  quotaCost: 1,
   inputSchema: {
     type: "object",
     properties: {
@@ -101,11 +100,9 @@ export default class ExtractVideoCommentsTool
   async run(
     options: ExtractCommentsOptions,
   ): Promise<ToolResponse<CommentAnalysis[]>> {
-    const startTime = Date.now();
     try {
       const maxCommentsPerVideo = options.maxCommentsPerVideo || 100;
       const commentAnalyses: CommentAnalysis[] = [];
-      let totalQuotaUsed = 0;
 
       for (const videoId of options.videoIds) {
         const commentsData = await this.getVideoComments(
@@ -160,24 +157,14 @@ export default class ExtractVideoCommentsTool
         }
 
         commentAnalyses.push(analysis);
-        totalQuotaUsed += commentsData.quotaUsed;
       }
 
       return {
         success: true,
         data: commentAnalyses,
-        metadata: {
-          quotaUsed: totalQuotaUsed,
-          requestTime: Date.now() - startTime,
-          source: "youtube-comments-analysis",
-        },
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<CommentAnalysis[]>(error, {
-        quotaUsed: 0,
-        startTime,
-        source: "youtube-comments-analysis",
-      });
+      return ErrorHandler.handleToolError<CommentAnalysis[]>(error);
     }
   }
 
@@ -185,12 +172,11 @@ export default class ExtractVideoCommentsTool
     videoId: string,
     maxResults: number,
     includeReplies: boolean,
-    includeAuthorDetails: boolean,
-    maxRepliesPerComment: number,
-  ): Promise<{ comments: any[]; totalComments: number; quotaUsed: number }> {
+    _includeAuthorDetails: boolean,
+    _maxRepliesPerComment: number,
+  ): Promise<{ comments: any[]; totalComments: number }> {
     const comments: any[] = [];
     let pageToken: string | undefined;
-    let quotaUsed = 0;
 
     // Build dynamic parts array
     const parts = ["snippet"];
@@ -206,13 +192,11 @@ export default class ExtractVideoCommentsTool
 
       comments.push(...(response.items || []));
       pageToken = response.nextPageToken;
-      quotaUsed += 1; // Each API call costs 1 quota unit
     } while (pageToken && comments.length < maxResults);
 
     return {
       comments,
       totalComments: comments.length,
-      quotaUsed,
     };
   }
 

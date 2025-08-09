@@ -85,6 +85,10 @@
       "to": "src/registry/tool-registry.ts"
     },
     {
+      "from": "src/interfaces/tool.ts",
+      "to": "src/utils/error-handler.ts"
+    },
+    {
       "from": "src/prompts/index.ts",
       "to": "src/types.ts"
     },
@@ -118,7 +122,7 @@
     },
     {
       "from": "src/tools/analyze-channel-videos.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/analyze-channel-videos.tool.ts",
@@ -282,7 +286,7 @@
     },
     {
       "from": "src/tools/find-content-gaps.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/generate-keyword-cloud.tool.ts",
@@ -314,7 +318,7 @@
     },
     {
       "from": "src/tools/get-channel-details.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/get-channel-details.tool.ts",
@@ -334,7 +338,7 @@
     },
     {
       "from": "src/tools/get-playlist-details.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/get-playlist-details.tool.ts",
@@ -354,7 +358,7 @@
     },
     {
       "from": "src/tools/get-trending-videos.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/get-trending-videos.tool.ts",
@@ -374,7 +378,7 @@
     },
     {
       "from": "src/tools/get-video-details.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/get-video-details.tool.ts",
@@ -414,11 +418,7 @@
     },
     {
       "from": "src/tools/search-channels.tool.ts",
-      "to": "src/utils/error-handler.ts"
-    },
-    {
-      "from": "src/tools/search-channels.tool.ts",
-      "to": "src/config/constants.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/search-channels.tool.ts",
@@ -438,11 +438,7 @@
     },
     {
       "from": "src/tools/search-playlists.tool.ts",
-      "to": "src/utils/error-handler.ts"
-    },
-    {
-      "from": "src/tools/search-playlists.tool.ts",
-      "to": "src/config/constants.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/search-playlists.tool.ts",
@@ -466,11 +462,11 @@
     },
     {
       "from": "src/tools/unified-search.tool.ts",
-      "to": "src/utils/quota-calculator.ts"
+      "to": "src/utils/error-handler.ts"
     },
     {
       "from": "src/tools/unified-search.tool.ts",
-      "to": "src/utils/error-handler.ts"
+      "to": "src/utils/response-formatters.ts"
     },
     {
       "from": "src/tools/unified-search.tool.ts",
@@ -479,14 +475,6 @@
     {
       "from": "src/utils/error-handler.ts",
       "to": "src/types.ts"
-    },
-    {
-      "from": "src/utils/quota-calculator.ts",
-      "to": "src/types.ts"
-    },
-    {
-      "from": "src/utils/quota-calculator.ts",
-      "to": "src/config/constants.ts"
     },
     {
       "from": "src/utils/response-validator.ts",

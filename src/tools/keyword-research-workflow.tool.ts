@@ -1,11 +1,10 @@
-import {
+import type {
   ToolMetadata,
-  ToolRunner,
   ChainableToolRunner,
 } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
 import { ToolRegistry } from "../registry/tool-registry.js";
-import { ToolResponse, KeywordAnalysisResult } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface KeywordResearchWorkflowOptions {
@@ -45,7 +44,6 @@ export const metadata: ToolMetadata = {
   name: "keyword_research_workflow",
   description:
     "COMPLETE keyword research workflow in ONE COMMAND. Automatically: 1) Searches top videos for your keywords, 2) Extracts ALL keywords from those videos, 3) Analyzes competition and opportunity scores, 4) Finds content gaps, 5) Generates keyword cloud visualization. Use this POWER TOOL when starting keyword research from scratch. Returns EVERYTHING you need: winning keywords, content ideas, competitor insights, and actionable recommendations. Saves hours of manual analysis.",
-  quotaCost: 200,
   inputSchema: {
     type: "object",
     properties: {
@@ -143,19 +141,12 @@ export default class KeywordResearchWorkflowTool
   async run(
     options: KeywordResearchWorkflowOptions,
   ): Promise<ToolResponse<WorkflowResult>> {
-    const startTime = Date.now();
-    let totalQuotaUsed = 0;
 
     try {
       if (!options.seedKeywords || options.seedKeywords.length === 0) {
         return {
           success: false,
           error: "Seed keywords array is required and cannot be empty",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "keyword-research-workflow",
-          },
         };
       }
 
@@ -167,7 +158,6 @@ export default class KeywordResearchWorkflowTool
         options.filters,
         options.searchOrder,
       );
-      totalQuotaUsed += 100; // Estimated quota for seed analysis
 
       // Step 2: Find and analyze videos for each seed keyword
       const videoAnalysis = await this.analyzeVideosForKeywords(
@@ -176,7 +166,6 @@ export default class KeywordResearchWorkflowTool
         options.filters,
         options.searchOrder,
       );
-      totalQuotaUsed += 50; // Estimated quota for video analysis
 
       // Step 3: Competitor analysis (if requested)
       let competitorAnalysis;
@@ -186,7 +175,6 @@ export default class KeywordResearchWorkflowTool
           options.filters,
           options.searchOrder,
         );
-        totalQuotaUsed += 50; // Estimated quota for competitor analysis
       }
 
       // Step 4: Generate keyword cloud (if requested)
@@ -225,18 +213,9 @@ export default class KeywordResearchWorkflowTool
       return {
         success: true,
         data: result,
-        metadata: {
-          quotaUsed: 200, // Fixed quota cost as declared in metadata
-          requestTime: Date.now() - startTime,
-          source: "keyword-research-workflow",
-        },
       };
     } catch (error) {
-      return ErrorHandler.handleToolError<WorkflowResult>(error, {
-        quotaUsed: 200, // Fixed quota cost as declared in metadata
-        startTime,
-        source: "keyword-research-workflow",
-      });
+      return ErrorHandler.handleToolError<WorkflowResult>(error);
     }
   }
 
@@ -573,23 +552,6 @@ export default class KeywordResearchWorkflowTool
     return allKeywords;
   }
 
-  private extractKeywordsFromVideos(videos: any[]): any[] {
-    const keywords: any[] = [];
-
-    videos.forEach((video) => {
-      // Extract from title
-      const titleWords = video.snippet.title
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((word: string) => word.length > 3);
-
-      titleWords.forEach((word: string) => {
-        keywords.push({ keyword: word, source: "title" });
-      });
-    });
-
-    return keywords;
-  }
 
   private extractThemes(videos: any[]): string[] {
     const themes: string[] = [];

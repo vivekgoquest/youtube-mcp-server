@@ -1,4 +1,4 @@
-import { GlobalConfig } from "../types.js";
+import type { GlobalConfig } from "../types.js";
 import {
   DEFAULT_VIDEO_PARTS,
   DEFAULT_CHANNEL_PARTS,

@@ -333,27 +333,27 @@ function mapFiltersToApiParams(
       const now = new Date();
       switch (filters.uploadDate) {
         case "hour":
-          params.publishedAfter = new Date(
+          params['publishedAfter'] = new Date(
             now.getTime() - 60 * 60 * 1000,
           ).toISOString();
           break;
         case "today":
-          params.publishedAfter = new Date(
+          params['publishedAfter'] = new Date(
             now.getTime() - 24 * 60 * 60 * 1000,
           ).toISOString();
           break;
         case "week":
-          params.publishedAfter = new Date(
+          params['publishedAfter'] = new Date(
             now.getTime() - 7 * 24 * 60 * 60 * 1000,
           ).toISOString();
           break;
         case "month":
-          params.publishedAfter = new Date(
+          params['publishedAfter'] = new Date(
             now.getTime() - 30 * 24 * 60 * 60 * 1000,
           ).toISOString();
           break;
         case "year":
-          params.publishedAfter = new Date(
+          params['publishedAfter'] = new Date(
             now.getTime() - 365 * 24 * 60 * 60 * 1000,
           ).toISOString();
           break;
@@ -371,16 +371,16 @@ function mapFiltersToApiParams(
 
       switch (filters.sortBy) {
         case "relevance":
-          params.order = "relevance";
+          params['order'] = "relevance";
           break;
         case "upload_date":
-          params.order = "date";
+          params['order'] = "date";
           break;
         case "view_count":
-          params.order = "viewCount";
+          params['order'] = "viewCount";
           break;
         case "rating":
-          params.order = "rating";
+          params['order'] = "rating";
           break;
       }
     }
@@ -395,7 +395,7 @@ function mapFiltersToApiParams(
       }
 
       if (filters.duration !== "any") {
-        params.videoDuration = filters.duration;
+        params['videoDuration'] = filters.duration;
       }
     }
   } catch (error) {
@@ -418,16 +418,16 @@ function checkParameterConflicts(
   // Check for conflicting order parameters
   if (
     params.order &&
-    filterParams.order &&
-    params.order !== filterParams.order
+    filterParams['order'] &&
+    params.order !== filterParams['order']
   ) {
     throw new Error(
-      `Conflicting sort parameters: 'order' is set to '${params.order}' but filters.sortBy implies '${filterParams.order}'`,
+      `Conflicting sort parameters: 'order' is set to '${params.order}' but filters.sortBy implies '${filterParams['order']}'`,
     );
   }
 
   // Check for conflicting date parameters
-  if (params.publishedAfter && filterParams.publishedAfter) {
+  if (params.publishedAfter && filterParams['publishedAfter']) {
     throw new Error(
       `Conflicting date parameters: both 'publishedAfter' and 'filters.uploadDate' are specified`,
     );
@@ -436,11 +436,11 @@ function checkParameterConflicts(
   // Check for conflicting duration parameters
   if (
     params.videoDuration &&
-    filterParams.videoDuration &&
-    params.videoDuration !== filterParams.videoDuration
+    filterParams['videoDuration'] &&
+    params.videoDuration !== filterParams['videoDuration']
   ) {
     throw new Error(
-      `Conflicting duration parameters: 'videoDuration' is set to '${params.videoDuration}' but filters.duration is set to '${filterParams.videoDuration}'`,
+      `Conflicting duration parameters: 'videoDuration' is set to '${params.videoDuration}' but filters.duration is set to '${filterParams['videoDuration']}'`,
     );
   }
 
@@ -452,7 +452,7 @@ function checkParameterConflicts(
   }
 
   // Validate that filters.duration is only used with video searches
-  if (filterParams.videoDuration && params.type && params.type !== "video") {
+  if (filterParams['videoDuration'] && params.type && params.type !== "video") {
     throw new Error(
       `filters.duration can only be used when searching for videos (type='video')`,
     );
@@ -546,10 +546,10 @@ export function buildSearchParams(
     channelId: params.channelId,
     type: params.type || "video",
     maxResults: params.maxResults || 10,
-    order: params.order || filterParams.order || "relevance",
-    publishedAfter: params.publishedAfter || filterParams.publishedAfter,
+    order: params.order || filterParams['order'] || "relevance",
+    publishedAfter: params.publishedAfter || filterParams['publishedAfter'],
     publishedBefore: params.publishedBefore,
-    videoDuration: params.videoDuration || filterParams.videoDuration,
+    videoDuration: params.videoDuration || filterParams['videoDuration'],
     regionCode: params.regionCode,
     safeSearch: params.safeSearch || "moderate",
     pageToken: params.pageToken,

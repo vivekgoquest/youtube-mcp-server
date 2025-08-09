@@ -79,7 +79,6 @@ export async function enrichVideos(
   client: YouTubeClient,
   videoIds: string[],
   parts: string[],
-  quotaTracker: { quotaUsed: number },
 ): Promise<Record<string, Video>> {
   if (!client || typeof client !== "object") {
     throw new Error("Valid YouTube client instance is required");
@@ -97,9 +96,6 @@ export async function enrichVideos(
     throw new Error("At least one part must be specified");
   }
 
-  if (!quotaTracker || typeof quotaTracker.quotaUsed !== "number") {
-    throw new Error("Valid quota tracker object is required");
-  }
 
   // Handle empty videoIds array
   if (videoIds.length === 0) {
@@ -125,7 +121,6 @@ export async function enrichVideos(
         id: batch.join(","),
       });
       // Each API call costs 1 quota unit for list operations
-      quotaTracker.quotaUsed += 1;
       const videos = response.items || [];
 
       if (!Array.isArray(videos)) {
@@ -157,7 +152,6 @@ export async function enrichChannels(
   client: YouTubeClient,
   channelIds: string[],
   parts: string[],
-  quotaTracker: { quotaUsed: number },
 ): Promise<Record<string, Channel>> {
   if (!client || typeof client !== "object") {
     throw new Error("Valid YouTube client instance is required");
@@ -175,9 +169,6 @@ export async function enrichChannels(
     throw new Error("At least one part must be specified");
   }
 
-  if (!quotaTracker || typeof quotaTracker.quotaUsed !== "number") {
-    throw new Error("Valid quota tracker object is required");
-  }
 
   // Handle empty channelIds array
   if (channelIds.length === 0) {
@@ -203,7 +194,6 @@ export async function enrichChannels(
         id: batch.join(","),
       });
       // Each API call costs 1 quota unit for list operations
-      quotaTracker.quotaUsed += 1;
       const channels = response.items || [];
 
       if (!Array.isArray(channels)) {
@@ -235,7 +225,6 @@ export async function enrichPlaylists(
   client: YouTubeClient,
   playlistIds: string[],
   parts: string[],
-  quotaTracker: { quotaUsed: number },
 ): Promise<Record<string, Playlist>> {
   if (!client || typeof client !== "object") {
     throw new Error("Valid YouTube client instance is required");
@@ -253,9 +242,6 @@ export async function enrichPlaylists(
     throw new Error("At least one part must be specified");
   }
 
-  if (!quotaTracker || typeof quotaTracker.quotaUsed !== "number") {
-    throw new Error("Valid quota tracker object is required");
-  }
 
   // Handle empty playlistIds array
   if (playlistIds.length === 0) {
@@ -281,7 +267,6 @@ export async function enrichPlaylists(
         id: batch.join(","),
       });
       // Each API call costs 1 quota unit for list operations
-      quotaTracker.quotaUsed += 1;
       const playlists = response.items || [];
 
       if (!Array.isArray(playlists)) {
@@ -465,8 +450,6 @@ export function getEnrichmentParts(
       case "playlist":
         return globalConfig.defaultPlaylistParts;
       default:
-        // TypeScript exhaustiveness check - should never reach here
-        const _exhaustive: never = resourceType;
         throw new Error(`Unexpected resource type: ${resourceType}`);
     }
   }
@@ -491,7 +474,6 @@ export async function performEnrichment(
   searchResults: SearchResult[],
   enrichParts: UnifiedSearchParams["enrichParts"],
   resourceType: "video" | "channel" | "playlist",
-  quotaTracker: { quotaUsed: number },
 ): Promise<SearchResult[]> {
   if (!client || typeof client !== "object") {
     throw new Error("Valid YouTube client instance is required");
@@ -501,9 +483,6 @@ export async function performEnrichment(
     throw new Error("searchResults must be an array");
   }
 
-  if (!quotaTracker || typeof quotaTracker.quotaUsed !== "number") {
-    throw new Error("Valid quota tracker object is required");
-  }
 
   // Check if enrichment is requested
   const parts = getEnrichmentParts(enrichParts, resourceType);
@@ -522,13 +501,13 @@ export async function performEnrichment(
 
   switch (resourceType) {
     case "video":
-      enrichedData = await enrichVideos(client, ids, parts, quotaTracker);
+      enrichedData = await enrichVideos(client, ids, parts);
       break;
     case "channel":
-      enrichedData = await enrichChannels(client, ids, parts, quotaTracker);
+      enrichedData = await enrichChannels(client, ids, parts);
       break;
     case "playlist":
-      enrichedData = await enrichPlaylists(client, ids, parts, quotaTracker);
+      enrichedData = await enrichPlaylists(client, ids, parts);
       break;
   }
 

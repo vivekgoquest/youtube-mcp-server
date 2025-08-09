@@ -1,6 +1,6 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface FeaturedChannelsOptions {
@@ -28,7 +28,6 @@ export const metadata: ToolMetadata = {
   name: "discover_channel_network",
   description:
     "MAP the hidden network of connected channels in any niche. Recursively discovers featured/recommended channels up to 5 levels deep, revealing collaboration networks and niche communities. Use this to: find ALL players in your niche, identify collaboration opportunities, understand channel alliances. Start with 1-3 seed channels and watch it spider out. Returns visual network showing who features whom. POWERFUL for discovering channels you'd never find through search alone.",
-  quotaCost: 2,
   inputSchema: {
     type: "object",
     properties: {
@@ -72,7 +71,6 @@ export default class DiscoverChannelNetworkTool
     options: FeaturedChannelsOptions,
   ): Promise<ToolResponse<ChannelNetworkNode[]>> {
     try {
-      const startTime = Date.now();
       const maxDepth = options.maxDepth || 3;
       const maxChannelsPerLevel = options.maxChannelsPerLevel || 10;
       const includeDetails = options.includeDetails !== false;
@@ -142,16 +140,9 @@ export default class DiscoverChannelNetworkTool
       return {
         success: true,
         data: channelNetwork,
-        metadata: {
-          quotaUsed: channelNetwork.length * 2, // Estimate: 1 for sections + 1 for details
-          requestTime: Date.now() - startTime,
-          source: "youtube-channel-network",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<ChannelNetworkNode[]>(error, {
-        quotaUsed: 0,
-        startTime: 0, // startTime was declared in try block, so we use 0
         source: "youtube-channel-network",
       });
     }
@@ -161,7 +152,6 @@ export default class DiscoverChannelNetworkTool
     channelId: string,
   ): Promise<ToolResponse<string[]>> {
     try {
-      const startTime = Date.now();
 
       // Get channel sections to find featured channels
       const sectionsResponse = await this.client.makeRawRequest(
@@ -183,16 +173,9 @@ export default class DiscoverChannelNetworkTool
       return {
         success: true,
         data: featuredChannels,
-        metadata: {
-          quotaUsed: 1,
-          requestTime: Date.now() - startTime,
-          source: "youtube-featured-channels",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<string[]>(error, {
-        quotaUsed: 1,
-        startTime: 0, // startTime was declared in try block, so we use 0
         source: "youtube-featured-channels",
       });
     }

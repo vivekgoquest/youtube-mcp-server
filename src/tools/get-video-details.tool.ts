@@ -1,7 +1,8 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, Video } from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
+import type { ToolResponse } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 import { DEFAULT_VIDEO_PARTS } from "../config/constants.js";
 
 interface GetVideoDetailsOptions {
@@ -63,24 +64,20 @@ export const metadata: ToolMetadata = {
     },
     required: ["videoId"],
   },
-  quotaCost: 1,
 };
 
-export default class GetVideoDetailsTool
-  implements ToolRunner<GetVideoDetailsOptions, Video>
-{
-  constructor(private client: YouTubeClient) {}
+export default class GetVideoDetailsTool extends Tool<GetVideoDetailsOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-  async run(options: GetVideoDetailsOptions): Promise<ToolResponse<Video>> {
-    const startTime = Date.now();
-
-    try {
-      if (!options.videoId) {
-        return ErrorHandler.handleValidationError(
-          "Video ID parameter is required",
-          "get-video-details",
-        );
-      }
+  async execute(options: GetVideoDetailsOptions): Promise<ToolResponse<string>> {
+    if (!options.videoId) {
+      return {
+        success: false,
+        error: "Video ID parameter is required"
+      };
+    }
 
       // Handle part selection with new options
       let parts: string[];
@@ -130,37 +127,117 @@ export default class GetVideoDetailsTool
         params.fields = options.fields;
       }
 
-      const result = await this.client.getVideos(params);
+      let result;
+      try {
+        result = await this.client.getVideos(params);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to fetch video details: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+        };
+      }
+
+      if (!result || !Array.isArray(result.items)) {
+        return {
+          success: false,
+          error: "Unexpected response structure from YouTube API"
+        };
+      }
 
       if (result.items.length === 0) {
-        return ErrorHandler.handleToolError(
-          new Error(`Video with ID '${options.videoId}' not found`),
-          {
-            quotaUsed: 1,
-            startTime,
-            source: "get-video-details",
-            defaultMessage: "Video not found",
-          },
-        );
+        return {
+          success: false,
+          error: `Video with ID '${options.videoId}' not found`
+        };
       }
 
       const video = result.items[0];
+      if (!video) {
+        return {
+          success: false,
+          error: `Video with ID '${options.videoId}' not found`,
+        };
+      }
+
+      // Format the video details
+      let output = ResponseFormatters.sectionHeader("🎬", "Video Details");
+      output += "\n";
+
+      if (video.snippet) {
+        if (video.snippet.title) {
+          output += ResponseFormatters.keyValue("Title", video.snippet.title);
+        }
+        if (video.snippet.channelTitle) {
+          output += ResponseFormatters.keyValue("Channel", video.snippet.channelTitle);
+        }
+        if (video.snippet.publishedAt) {
+          output += ResponseFormatters.keyValue("Published", ResponseFormatters.formatDate(video.snippet.publishedAt));
+        }
+        if (video.snippet.description) {
+          output += ResponseFormatters.keyValue("Description", ResponseFormatters.truncateText(video.snippet.description, 300));
+        }
+        output += "\n";
+      }
+
+      if (video.statistics) {
+        output += ResponseFormatters.sectionHeader("📊", "Statistics");
+        if (video.statistics.viewCount) {
+          output += ResponseFormatters.bulletPoint("Views", ResponseFormatters.formatNumber(video.statistics.viewCount));
+        }
+        if (video.statistics.likeCount) {
+          output += ResponseFormatters.bulletPoint("Likes", ResponseFormatters.formatNumber(video.statistics.likeCount));
+        }
+        if (video.statistics.commentCount) {
+          output += ResponseFormatters.bulletPoint("Comments", ResponseFormatters.formatNumber(video.statistics.commentCount));
+        }
+        output += "\n";
+      }
+
+      if (video.contentDetails) {
+        output += ResponseFormatters.sectionHeader("⏱️", "Content Details");
+        if (video.contentDetails.duration) {
+          output += ResponseFormatters.bulletPoint("Duration", ResponseFormatters.formatDuration(video.contentDetails.duration));
+        }
+        if (video.contentDetails.definition) {
+          output += ResponseFormatters.bulletPoint("Definition", video.contentDetails.definition.toUpperCase());
+        }
+        output += "\n";
+      }
+
+      if (video.status) {
+        output += ResponseFormatters.sectionHeader("🔒", "Status");
+        if (video.status.privacyStatus) {
+          output += ResponseFormatters.bulletPoint("Privacy Status", video.status.privacyStatus);
+        }
+        if (video.status.license) {
+          output += ResponseFormatters.bulletPoint("License", video.status.license);
+        }
+        if (video.status.embeddable !== undefined) {
+          output += ResponseFormatters.bulletPoint("Embeddable", video.status.embeddable ? "Yes" : "No");
+        }
+        output += "\n";
+      }
+
+      if (video.topicDetails?.topicCategories) {
+        output += ResponseFormatters.sectionHeader("🏷️", "Topic Categories");
+        video.topicDetails.topicCategories.forEach((topic: string) => {
+          const topicName = topic.split("/").pop()?.replace(/_/g, " ");
+          output += ResponseFormatters.bulletPoint("Topic", topicName || topic);
+        });
+        output += "\n";
+      }
+
+      output += ResponseFormatters.sectionHeader("🔗", "Links");
+      if (video.id) {
+        output += ResponseFormatters.bulletPoint("Video URL", ResponseFormatters.getYouTubeUrl("video", video.id));
+      }
+      if (video.snippet?.channelId) {
+        output += ResponseFormatters.bulletPoint("Channel URL", ResponseFormatters.getYouTubeUrl("channel", video.snippet.channelId));
+      }
 
       return {
         success: true,
-        data: video,
-        metadata: {
-          quotaUsed: 1,
-          requestTime: 0,
-          source: "get-video-details",
-        },
+        data: output,
       };
-    } catch (error: any) {
-      return ErrorHandler.handleToolError(error, {
-        quotaUsed: 1,
-        startTime,
-        source: "get-video-details",
-      });
-    }
   }
 }

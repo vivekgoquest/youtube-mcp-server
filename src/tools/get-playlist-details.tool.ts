@@ -1,7 +1,8 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse, Playlist } from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
+import type { ToolResponse } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 import { DEFAULT_PLAYLIST_PARTS } from "../config/constants.js";
 
 interface GetPlaylistDetailsOptions {
@@ -49,30 +50,20 @@ export const metadata: ToolMetadata = {
     },
     required: ["playlistId"],
   },
-  quotaCost: 1,
 };
 
-export default class GetPlaylistDetailsTool
-  implements ToolRunner<GetPlaylistDetailsOptions, Playlist>
-{
-  constructor(private client: YouTubeClient) {}
+export default class GetPlaylistDetailsTool extends Tool<GetPlaylistDetailsOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-  async run(
-    options: GetPlaylistDetailsOptions,
-  ): Promise<ToolResponse<Playlist>> {
-    const startTime = Date.now();
-    try {
-      if (!options.playlistId) {
-        return {
-          success: false,
-          error: "Playlist ID parameter is required",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: 0,
-            source: "get-playlist-details",
-          },
-        };
-      }
+  async execute(options: GetPlaylistDetailsOptions): Promise<ToolResponse<string>> {
+    if (!options.playlistId) {
+      return {
+        success: false,
+        error: "Playlist ID parameter is required",
+      };
+    }
 
       // Handle part selection with new options
       let parts: string[];
@@ -105,31 +96,78 @@ export default class GetPlaylistDetailsTool
         return {
           success: false,
           error: `Playlist with ID '${options.playlistId}' not found`,
-          metadata: {
-            quotaUsed: 1,
-            requestTime: 0,
-            source: "get-playlist-details",
-          },
         };
       }
 
       const playlist = result.items[0];
+      if (!playlist) {
+        return {
+          success: false,
+          error: `Playlist with ID '${options.playlistId}' not found`,
+        };
+      }
+
+      // Format the playlist details
+      let output = ResponseFormatters.sectionHeader("📋", "Playlist Details");
+      output += "\n";
+
+      if (playlist.snippet) {
+        if (playlist.snippet.title) {
+          output += ResponseFormatters.keyValue("Title", playlist.snippet.title);
+        }
+        if (playlist.snippet.channelTitle) {
+          output += ResponseFormatters.keyValue("Channel", playlist.snippet.channelTitle);
+        }
+        if (playlist.snippet.publishedAt) {
+          output += ResponseFormatters.keyValue("Created", ResponseFormatters.formatDate(playlist.snippet.publishedAt));
+        }
+        if (playlist.snippet.description) {
+          output += ResponseFormatters.keyValue("Description", ResponseFormatters.truncateText(playlist.snippet.description, 300));
+        }
+        output += "\n";
+      }
+
+      if (playlist.contentDetails) {
+        output += ResponseFormatters.sectionHeader("📊", "Content Details");
+        if (playlist.contentDetails.itemCount !== undefined) {
+          output += ResponseFormatters.bulletPoint("Total Videos", playlist.contentDetails.itemCount.toString());
+        }
+        output += "\n";
+      }
+
+      if (playlist.status) {
+        output += ResponseFormatters.sectionHeader("🔒", "Status");
+        if (playlist.status.privacyStatus) {
+          output += ResponseFormatters.bulletPoint("Privacy Status", playlist.status.privacyStatus);
+        }
+        output += "\n";
+      }
+
+      if (playlist.player?.embedHtml) {
+        output += ResponseFormatters.sectionHeader("🎬", "Embed Player");
+        output += ResponseFormatters.keyValue("Embed Available", "Yes");
+        output += "\n";
+      }
+
+      if (playlist.localizations && Object.keys(playlist.localizations).length > 0) {
+        output += ResponseFormatters.sectionHeader("🌐", "Localizations");
+        Object.entries(playlist.localizations).forEach(([lang, localization]) => {
+          output += ResponseFormatters.bulletPoint(lang.toUpperCase(), localization.title);
+        });
+        output += "\n";
+      }
+
+      output += ResponseFormatters.sectionHeader("🔗", "Links");
+      if (playlist.id) {
+        output += ResponseFormatters.bulletPoint("Playlist URL", ResponseFormatters.getYouTubeUrl("playlist", playlist.id));
+      }
+      if (playlist.snippet?.channelId) {
+        output += ResponseFormatters.bulletPoint("Channel URL", ResponseFormatters.getYouTubeUrl("channel", playlist.snippet.channelId));
+      }
 
       return {
         success: true,
-        data: playlist,
-        metadata: {
-          quotaUsed: 1,
-          requestTime: 0,
-          source: "get-playlist-details",
-        },
+        data: output,
       };
-    } catch (error) {
-      return ErrorHandler.handleToolError<Playlist>(error, {
-        quotaUsed: 1,
-        startTime,
-        source: "get-playlist-details",
-      });
-    }
   }
 }

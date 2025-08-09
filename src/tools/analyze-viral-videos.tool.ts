@@ -1,14 +1,14 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 interface ViralVideoOptions {
-  categoryId?: string;
-  regionCode?: string;
-  minViews?: number;
-  timeframe?: "day" | "week" | "month";
-  maxResults?: number;
+  categoryId?: string | undefined;
+  regionCode?: string | undefined;
+  minViews?: number | undefined;
+  timeframe?: "day" | "week" | "month" | undefined;
+  maxResults?: number | undefined;
 }
 
 interface ViralVideoAnalysis {
@@ -33,7 +33,6 @@ export const metadata: ToolMetadata = {
   name: "analyze_viral_videos",
   description:
     "DECODE the viral formula by analyzing videos with 1M+ views in your niche. Examines titles, thumbnails patterns, video length, upload timing, and engagement ratios that correlate with viral success. Use this to REVERSE ENGINEER viral hits and apply winning formulas to your content. Returns: common title patterns, optimal video lengths, best upload times, engagement benchmarks. Filter by category and region for laser-focused insights.",
-  quotaCost: 1,
   inputSchema: {
     type: "object",
     properties: {
@@ -78,19 +77,12 @@ export default class AnalyzeViralVideosTool
   async run(
     options: ViralVideoOptions,
   ): Promise<ToolResponse<ViralVideoAnalysis[]>> {
-    const startTime = Date.now();
-
     try {
       // Validate input parameters
       if (!options || typeof options !== "object") {
         return {
           success: false,
           error: "Invalid options: must be a non-null object",
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "youtube-viral-analysis",
-          },
         };
       }
 
@@ -104,12 +96,7 @@ export default class AnalyzeViralVideosTool
           return {
             success: false,
             error: "Invalid maxResults: must be a number between 1 and 50",
-            metadata: {
-              quotaUsed: 0,
-              requestTime: Date.now() - startTime,
-              source: "youtube-viral-analysis",
-            },
-          };
+            };
         }
       }
 
@@ -119,12 +106,7 @@ export default class AnalyzeViralVideosTool
           return {
             success: false,
             error: "Invalid minViews: must be a number >= 100,000",
-            metadata: {
-              quotaUsed: 0,
-              requestTime: Date.now() - startTime,
-              source: "youtube-viral-analysis",
-            },
-          };
+            };
         }
       }
 
@@ -136,11 +118,6 @@ export default class AnalyzeViralVideosTool
         return {
           success: false,
           error: 'Invalid timeframe: must be "day", "week", or "month"',
-          metadata: {
-            quotaUsed: 0,
-            requestTime: Date.now() - startTime,
-            source: "youtube-viral-analysis",
-          },
         };
       }
 
@@ -148,13 +125,18 @@ export default class AnalyzeViralVideosTool
       const maxResults = options.maxResults || 50;
 
       // Get trending videos first
-      const trendingResponse = await this.client.getVideos({
+      const videoParams: any = {
         part: "snippet,statistics,contentDetails",
         chart: "mostPopular",
         maxResults: Math.min(maxResults, 50),
         regionCode: options.regionCode || "US",
-        videoCategoryId: options.categoryId,
-      });
+      };
+      
+      if (options.categoryId) {
+        videoParams.videoCategoryId = options.categoryId;
+      }
+      
+      const trendingResponse = await this.client.getVideos(videoParams);
 
       const viralAnalyses: ViralVideoAnalysis[] = [];
 
@@ -213,16 +195,9 @@ export default class AnalyzeViralVideosTool
       return {
         success: true,
         data: viralAnalyses,
-        metadata: {
-          quotaUsed: 1,
-          requestTime: Date.now() - startTime,
-          source: "youtube-viral-analysis",
-        },
       };
     } catch (error) {
       return ErrorHandler.handleToolError<ViralVideoAnalysis[]>(error, {
-        quotaUsed: 1,
-        startTime,
         source: "youtube-viral-analysis",
       });
     }
@@ -244,7 +219,7 @@ export default class AnalyzeViralVideosTool
 
   private identifyViralCharacteristics(
     video: any,
-    views: number,
+    _views: number,
     engagementRate: number,
   ): string[] {
     const characteristics: string[] = [];

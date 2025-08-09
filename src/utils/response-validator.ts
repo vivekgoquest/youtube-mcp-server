@@ -3,8 +3,6 @@ import { default as addFormats } from "ajv-formats";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { YouTubeApiResponse, ToolResponse } from "../types.js";
-import type { MCPToolResult } from "../mcp-server.js";
 import { ErrorHandler } from "./error-handler.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -291,25 +289,6 @@ export class ResponseValidator {
       });
     }
 
-    // Validate metadata if present
-    if (response.metadata) {
-      if (typeof response.metadata.quotaUsed !== "number") {
-        errors.push({
-          field: "metadata.quotaUsed",
-          message: "Quota used must be a number",
-          value: response.metadata.quotaUsed,
-          expectedType: "number",
-        });
-      }
-      if (typeof response.metadata.requestTime !== "number") {
-        errors.push({
-          field: "metadata.requestTime",
-          message: "Request time must be a number",
-          value: response.metadata.requestTime,
-          expectedType: "number",
-        });
-      }
-    }
 
     const validationTime = Date.now() - startTime;
     const valid = errors.length === 0;
@@ -378,7 +357,7 @@ export class ResponseValidator {
   }
 
   /**
-   * Assertion helpers for testing
+   * Assertion helpers for validation
    */
   async assertValidMcpResult(response: any): Promise<void> {
     const result = await this.validateMCPToolResult(response);
@@ -435,7 +414,7 @@ export class ResponseValidator {
   }
 
   /**
-   * Clear schema cache (useful for testing)
+   * Clear schema cache
    */
   clearCache(): void {
     this.schemaCache.clear();

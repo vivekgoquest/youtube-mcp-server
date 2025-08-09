@@ -299,7 +299,6 @@ function generateAllSchemas() {
   console.log(
     `\n🎯 Schemas generated successfully! Use them with the ResponseValidator.`,
   );
-  console.log(`💡 Run 'npm test' to validate the generated schemas.`);
 
   // Exit with error code if any schemas failed
   if (failed > 0) {

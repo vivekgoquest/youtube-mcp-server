@@ -1,4 +1,4 @@
-import { PromptTemplate, MCPPromptMessage } from "../types.js";
+import type { PromptTemplate, MCPPromptMessage } from "../types.js";
 import { findNicheChannelsPrompt } from "./templates/find-niche-channels.js";
 
 /**

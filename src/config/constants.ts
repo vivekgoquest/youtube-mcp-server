@@ -6,7 +6,6 @@
 /**
  * Default video parts for enrichment
  * These parts are included by default when fetching video data
- * Each part counts towards the API quota cost
  */
 export const DEFAULT_VIDEO_PARTS = [
   "snippet",
@@ -19,7 +18,6 @@ export const DEFAULT_VIDEO_PARTS = [
 /**
  * Default channel parts for enrichment
  * These parts are included by default when fetching channel data
- * Each part counts towards the API quota cost
  */
 export const DEFAULT_CHANNEL_PARTS = [
   "snippet",
@@ -32,7 +30,6 @@ export const DEFAULT_CHANNEL_PARTS = [
 /**
  * Default playlist parts for enrichment
  * These parts are included by default when fetching playlist data
- * Each part counts towards the API quota cost
  */
 export const DEFAULT_PLAYLIST_PARTS = ["snippet", "contentDetails", "status"];
 

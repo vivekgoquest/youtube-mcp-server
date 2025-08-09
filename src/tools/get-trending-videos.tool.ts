@@ -1,13 +1,8 @@
-import { ToolMetadata, ToolRunner } from "../interfaces/tool.js";
+import type { ToolMetadata } from "../interfaces/tool.js";
+import { Tool } from "../interfaces/tool.js";
 import { YouTubeClient } from "../youtube-client.js";
-import {
-  ToolResponse,
-  TrendingVideosParams,
-  YouTubeApiResponse,
-  Video,
-} from "../types.js";
-import { ErrorHandler } from "../utils/error-handler.js";
-import { DEFAULT_VIDEO_PARTS } from "../config/constants.js";
+import type { ToolResponse, TrendingVideosParams } from "../types.js";
+import { ResponseFormatters } from "../utils/response-formatters.js";
 
 export const metadata: ToolMetadata = {
   name: "get_trending_videos",
@@ -67,112 +62,20 @@ export const metadata: ToolMetadata = {
       },
     },
   },
-  quotaCost: 1,
 };
 
-export default class GetTrendingVideosTool
-  implements
-    ToolRunner<
-      TrendingVideosParams & {
-        includeParts?: string[];
-        includeExtended?: boolean;
-        fields?: string;
-      },
-      YouTubeApiResponse<Video>
-    >
-{
-  constructor(private client: YouTubeClient) {}
+interface GetTrendingVideosOptions extends TrendingVideosParams {
+  includeParts?: string[];
+  includeExtended?: boolean;
+  fields?: string;
+}
 
-  async run(
-    params: TrendingVideosParams & {
-      includeParts?: string[];
-      includeExtended?: boolean;
-      fields?: string;
-    },
-  ): Promise<ToolResponse<YouTubeApiResponse<Video>>> {
-    const startTime = Date.now();
+export default class GetTrendingVideosTool extends Tool<GetTrendingVideosOptions, string> {
+  constructor(private client: YouTubeClient) {
+    super();
+  }
 
-    try {
-      // Validate input parameters - handle null, undefined, or non-object inputs
-      if (params === null || params === undefined) {
-        return ErrorHandler.handleValidationError(
-          "Input parameters are required",
-          "get-trending-videos",
-        );
-      }
-
-      if (typeof params !== "object" || Array.isArray(params)) {
-        return ErrorHandler.handleValidationError(
-          "Input parameters must be an object",
-          "get-trending-videos",
-        );
-      }
-
-      // Validate individual parameters
-      if (params.maxResults !== undefined) {
-        if (
-          typeof params.maxResults !== "number" ||
-          params.maxResults < 1 ||
-          params.maxResults > 50
-        ) {
-          return ErrorHandler.handleValidationError(
-            "maxResults must be a number between 1 and 50",
-            "get-trending-videos",
-          );
-        }
-      }
-
-      if (
-        params.regionCode !== undefined &&
-        (typeof params.regionCode !== "string" ||
-          params.regionCode.trim() === "")
-      ) {
-        return ErrorHandler.handleValidationError(
-          "regionCode must be a non-empty string",
-          "get-trending-videos",
-        );
-      }
-
-      if (
-        params.videoCategoryId !== undefined &&
-        (typeof params.videoCategoryId !== "string" ||
-          params.videoCategoryId.trim() === "")
-      ) {
-        return ErrorHandler.handleValidationError(
-          "videoCategoryId must be a non-empty string",
-          "get-trending-videos",
-        );
-      }
-
-      if (
-        params.includeParts !== undefined &&
-        !Array.isArray(params.includeParts)
-      ) {
-        return ErrorHandler.handleValidationError(
-          "includeParts must be an array",
-          "get-trending-videos",
-        );
-      }
-
-      if (
-        params.includeExtended !== undefined &&
-        typeof params.includeExtended !== "boolean"
-      ) {
-        return ErrorHandler.handleValidationError(
-          "includeExtended must be a boolean",
-          "get-trending-videos",
-        );
-      }
-
-      if (
-        params.fields !== undefined &&
-        (typeof params.fields !== "string" || params.fields.trim() === "")
-      ) {
-        return ErrorHandler.handleValidationError(
-          "fields must be a non-empty string",
-          "get-trending-videos",
-        );
-      }
+  async execute(params: GetTrendingVideosOptions): Promise<ToolResponse<string>> {
 
       // Handle part selection with new options
       let parts: string[];
@@ -185,7 +88,7 @@ export default class GetTrendingVideosTool
 
       const videoParams: any = {
         part: parts.join(","),
-        chart: "mostPopular" as const,
+        chart: "mostPopular",
         maxResults: params.maxResults || 25,
         regionCode: params.regionCode || "US",
         videoCategoryId: params.videoCategoryId,
@@ -206,22 +109,62 @@ export default class GetTrendingVideosTool
 
       const response = await this.client.getVideos(videoParams);
 
+      if (!response.items || response.items.length === 0) {
+        return {
+          success: false,
+          error: "No trending videos found for the specified criteria"
+        };
+      }
+
+      // Format the trending videos list
+      let output = ResponseFormatters.sectionHeader("🔥", `Trending Videos in ${params.regionCode || "US"}`);
+      if (params.videoCategoryId) {
+        output += ResponseFormatters.keyValue("Category ID", params.videoCategoryId);
+      }
+      output += ResponseFormatters.keyValue("Results", response.items.length.toString());
+      output += "\n";
+
+      response.items.forEach((video, index) => {
+        output += ResponseFormatters.numberedItem(index + 1, `**${video.snippet?.title || "Untitled"}**`);
+        
+        if (video.snippet?.channelTitle) {
+          output += ResponseFormatters.keyValue("Channel", video.snippet.channelTitle, 3);
+        }
+        
+        if (video.statistics) {
+          const stats = [];
+          if (video.statistics.viewCount) {
+            stats.push(`${ResponseFormatters.formatNumber(video.statistics.viewCount)} views`);
+          }
+          if (video.statistics.likeCount) {
+            stats.push(`${ResponseFormatters.formatNumber(video.statistics.likeCount)} likes`);
+          }
+          if (stats.length > 0) {
+            output += ResponseFormatters.keyValue("Stats", stats.join(" • "), 3);
+          }
+        }
+        
+        if (video.contentDetails?.duration) {
+          output += ResponseFormatters.keyValue("Duration", ResponseFormatters.formatDuration(video.contentDetails.duration), 3);
+        }
+        
+        if (video.id) {
+          output += ResponseFormatters.keyValue("URL", ResponseFormatters.getYouTubeUrl("video", video.id), 3);
+        }
+        
+        output += "\n";
+      });
+
+      // Add pagination info if available
+      if (response.nextPageToken) {
+        output += ResponseFormatters.sectionHeader("📄", "Pagination");
+        output += ResponseFormatters.keyValue("Next Page Token", response.nextPageToken);
+        output += ResponseFormatters.keyValue("Total Results", response.pageInfo?.totalResults?.toString() || "Unknown");
+      }
+
       return {
         success: true,
-        data: response,
-        metadata: {
-          quotaUsed: 1, // Videos.list costs 1 quota unit
-          requestTime: 0,
-          source: "youtube-trending-videos",
-        },
+        data: output,
       };
-    } catch (error: any) {
-      return ErrorHandler.handleToolError(error, {
-        quotaUsed: 1,
-        startTime,
-        source: "get-trending-videos",
-        defaultMessage: "Failed to get trending videos",
-      });
-    }
   }
 }

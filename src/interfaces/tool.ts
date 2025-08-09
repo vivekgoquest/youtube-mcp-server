@@ -1,5 +1,6 @@
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ToolRegistry } from "../registry/tool-registry.js";
+import { ErrorHandler } from "../utils/error-handler.js";
 
 export interface ToolMetadata {
   name: string;
@@ -10,7 +11,6 @@ export interface ToolMetadata {
     required?: string[];
   };
   version?: string;
-  quotaCost?: number;
   requiresRegistry?: boolean; // Indicates if tool needs registry for chaining
 }
 
@@ -40,4 +40,20 @@ export interface ToolConstructor<TInput = any, TOutput = any> {
 
 export interface ChainableToolConstructor<TInput = any, TOutput = any> {
   new (client: any, registry: ToolRegistry): ToolRunner<TInput, TOutput>;
+}
+
+/**
+ * Abstract base class for all tools
+ * Handles common functionality like error handling
+ */
+export abstract class Tool<TInput = any, TOutput = any> implements ToolRunner<TInput, TOutput> {
+  protected abstract execute(input: TInput): Promise<ToolResponse<TOutput>>;
+
+  async run(input: TInput): Promise<ToolResponse<TOutput>> {
+    try {
+      return await this.execute(input);
+    } catch (error: any) {
+      return ErrorHandler.handleToolError(error);
+    }
+  }
 }

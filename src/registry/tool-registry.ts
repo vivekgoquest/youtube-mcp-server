@@ -1,14 +1,14 @@
 import { readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import {
+import type {
   ToolMetadata,
   ToolModule,
   ToolConstructor,
   ChainableToolConstructor,
   ToolRunner,
 } from "../interfaces/tool.js";
-import { ToolResponse } from "../types.js";
+import type { ToolResponse } from "../types.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 
 export class ToolRegistry {
@@ -111,17 +111,10 @@ export class ToolRegistry {
       return {
         success: false,
         error: `Tool '${name}' not found`,
-        metadata: {
-          quotaUsed: 0,
-          requestTime: 0,
-          source: "tool-registry",
-        },
       };
     }
 
     try {
-      const startTime = Date.now();
-
       // Check if tool requires registry for chaining
       let toolInstance: ToolRunner<any, T>;
       if (tool.metadata.requiresRegistry) {
@@ -136,26 +129,10 @@ export class ToolRegistry {
       }
 
       const result = await toolInstance.run(input);
-      const requestTime = Date.now() - startTime;
-
-      // Ensure metadata is present
-      if (result.metadata) {
-        result.metadata.requestTime = requestTime;
-      } else {
-        result.metadata = {
-          quotaUsed: tool.metadata.quotaCost || 1,
-          requestTime,
-          source: name,
-        };
-      }
-
       return result;
     } catch (error) {
       return ErrorHandler.handleToolError(error, {
-        quotaUsed: 0,
-        startTime: Date.now(),
         source: name,
-        defaultMessage: "Unknown error occurred",
       });
     }
   }
